@@ -81,8 +81,13 @@ class VoucherGroup(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     omada_group_id = db.Column(db.String(100))  # ID from Omada Controller
     voucher_codes = db.Column(JSON)  # List of voucher codes
+    unused_count = db.Column(db.Integer, default=0)
+    used_count = db.Column(db.Integer, default=0)
+    in_use_count = db.Column(db.Integer, default=0)
+    expired_count = db.Column(db.Integer, default=0)
+    last_sync = db.Column(db.DateTime)
     total_value = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), default='active')  # active, used, expired
+    status = db.Column(db.String(20), default='generated')  # generated, used, expired
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships

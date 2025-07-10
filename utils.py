@@ -258,3 +258,52 @@ def sync_sites_from_omada():
     except Exception as e:
         logging.error(f"Error syncing sites: {str(e)}")
         return False, f"Erro na sincronização: {str(e)}"
+
+def sync_voucher_statuses_from_omada(site_id: int):
+    """Sync voucher statuses from Omada Controller for a specific site"""
+    from omada_api import omada_api
+    from models import Site, VoucherGroup
+    from app import db
+    import logging
+    
+    # Get the site from database
+    site = Site.query.get(site_id)
+    if not site:
+        logging.error(f"Site with id {site_id} not found")
+        return False
+    
+    # Get voucher groups for this site from Omada Controller
+    response = omada_api.get_voucher_groups(site.site_id)
+    
+    if response and response.get('errorCode') == 0:
+        voucher_groups_data = response.get('result', {}).get('data', [])
+        
+        for group_data in voucher_groups_data:
+            omada_group_id = group_data.get('id')
+            if omada_group_id:
+                # Find the corresponding voucher group in our database
+                voucher_group = VoucherGroup.query.filter_by(omada_group_id=omada_group_id).first()
+                
+                if voucher_group:
+                    # Update status counts from Omada Controller
+                    voucher_group.unused_count = group_data.get('unusedCount', 0)
+                    voucher_group.used_count = group_data.get('usedCount', 0)
+                    voucher_group.in_use_count = group_data.get('inUseCount', 0)
+                    voucher_group.expired_count = group_data.get('expiredCount', 0)
+                    voucher_group.last_sync = datetime.utcnow()
+                    
+                    # Update overall status based on counts
+                    # Expired vouchers are considered "sold" (used)
+                    if voucher_group.expired_count > 0 or voucher_group.used_count > 0 or voucher_group.in_use_count > 0:
+                        voucher_group.status = 'sold'
+                    else:
+                        voucher_group.status = 'generated'
+                    
+                    logging.info(f"Updated voucher group {voucher_group.id}: unused={voucher_group.unused_count}, "
+                               f"used={voucher_group.used_count}, in_use={voucher_group.in_use_count}, "
+                               f"expired={voucher_group.expired_count}, status={voucher_group.status}")
+        
+        db.session.commit()
+        return True
+    
+    return False

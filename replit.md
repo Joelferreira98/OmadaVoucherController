@@ -8,6 +8,23 @@ This is a comprehensive voucher management system built with Flask that integrat
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (July 2025)
+
+### Voucher Status Management System
+- **Problem Identified**: Vouchers were incorrectly marked as "sold" when generated, not when actually used
+- **Solution Implemented**: 
+  - Vouchers now start with status "generated" when created
+  - Only become "sold" when expired/used in Omada Controller
+  - Added real-time status synchronization from Omada Controller
+  - Added database fields: unused_count, used_count, in_use_count, expired_count, last_sync
+  - Created sync_voucher_statuses_from_omada() function for status updates
+  - Added /sync-voucher-status/<site_id> route for manual synchronization
+
+### Code Generation Improvements
+- **Voucher Codes**: Always numeric-only (no letters/symbols)
+- **Plan-Level Configuration**: Code length and limit type configured at voucher plan creation
+- **Simplified Generation**: Removed advanced options from voucher generation form
+
 ## System Architecture
 
 ### Backend Architecture

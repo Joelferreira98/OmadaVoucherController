@@ -279,6 +279,42 @@ class OmadaAPI:
             
         return self._make_request('GET', endpoint, params=params)
     
+    def get_voucher_groups(self, site_id: str, page: int = 1, page_size: int = 100, **filters) -> Optional[Dict]:
+        """Get voucher group list from Omada Controller"""
+        if not self._ensure_valid_token():
+            return None
+            
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/sites/{site_id}/hotspot/voucher-groups"
+        
+        # Prepare query parameters
+        params = {
+            'page': page,
+            'pageSize': page_size
+        }
+        
+        # Add optional filters
+        if filters.get('time_start'):
+            params['filters.timeStart'] = filters['time_start']
+        if filters.get('time_end'):
+            params['filters.timeEnd'] = filters['time_end']
+        if filters.get('search_key'):
+            params['searchKey'] = filters['search_key']
+            
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            response = self.session.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            result = response.json()
+            logging.info(f"Voucher groups retrieved: {result.get('result', {}).get('totalRows', 0)} total")
+            return result
+        except Exception as e:
+            logging.error(f"Error getting voucher groups: {str(e)}")
+            return None
+
     def export_vouchers(self, site_id: str, **filters) -> Optional[Dict]:
         """Export vouchers from Omada Controller"""
         endpoint = f"sites/{site_id}/hotspot/vouchers/export"

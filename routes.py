@@ -923,7 +923,7 @@ def generate_vouchers():
                     code = ''.join(random.choices(char_set, k=code_length))
                     voucher_codes.append(code)
                 
-                # Create local voucher group record
+                # Create local voucher group record with proper initial status
                 voucher_group = VoucherGroup(
                     site_id=vendor_site.site_id,
                     plan_id=plan.id,
@@ -931,7 +931,11 @@ def generate_vouchers():
                     quantity=form.quantity.data,
                     omada_group_id=omada_group_id,
                     voucher_codes=voucher_codes,
-                    total_value=plan.price * form.quantity.data
+                    total_value=plan.price * form.quantity.data,
+                    unused_count=form.quantity.data,  # Initially all vouchers are unused
+                    used_count=0,
+                    in_use_count=0,
+                    expired_count=0
                 )
                 
                 db.session.add(voucher_group)
@@ -955,6 +959,22 @@ def generate_vouchers():
         flash('Dados inválidos. Verifique os campos.', 'error')
     
     return redirect(url_for('create_vouchers'))
+
+@app.route('/sync-voucher-status/<int:site_id>')
+@login_required
+def sync_voucher_status(site_id):
+    from utils import sync_voucher_statuses_from_omada
+    
+    success = sync_voucher_statuses_from_omada(site_id)
+    
+    if success:
+        flash('Status dos vouchers sincronizado com sucesso!', 'success')
+        logging.info(f"Voucher statuses synced for site {site_id} by {current_user.username}")
+    else:
+        flash('Erro ao sincronizar status dos vouchers. Verifique a conexão com o Omada Controller.', 'error')
+        logging.error(f"Failed to sync voucher statuses for site {site_id}")
+    
+    return redirect(request.referrer or url_for('dashboard'))
 
 @app.route('/vendor/voucher_history')
 @login_required
