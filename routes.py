@@ -6,6 +6,7 @@ import logging
 
 from app import app, db, login_manager
 from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup, OmadaConfig
+from datetime import datetime
 from forms import LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, OmadaConfigForm
 from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada
 from omada_api import omada_api
@@ -773,16 +774,359 @@ def vendor_dashboard():
         VoucherGroup.created_by_id == current_user.id
     ).scalar() or 0
     
+    # Monthly sales
+    start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    monthly_sales = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
+        VoucherGroup.created_by_id == current_user.id,
+        VoucherGroup.created_at >= start_of_month
+    ).scalar() or 0
+    
     recent_vouchers = VoucherGroup.query.filter_by(created_by_id=current_user.id).order_by(
         VoucherGroup.created_at.desc()
-    ).limit(10).all()
+    ).limit(5).all()
     
     return render_template('vendor/dashboard.html',
                          site=vendor_site.site,
                          plans=plans,
                          total_vouchers=total_vouchers,
                          total_revenue=total_revenue,
+                         monthly_sales=monthly_sales,
                          recent_vouchers=recent_vouchers)
+
+@app.route('/vendor/create_vouchers')
+@login_required
+def create_vouchers():
+    if current_user.user_type != 'vendor':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    if not vendor_site:
+        flash('Nenhum site atribuído.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Get available plans
+    plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
+    
+    # Create form and populate plan choices
+    form = VoucherGenerationForm()
+    form.plan_id.choices = [(plan.id, f"{plan.name} - R$ {plan.price:.2f}".replace('.', ',')) for plan in plans]
+    
+    # Pre-select plan if provided in URL
+    plan_id = request.args.get('plan_id')
+    if plan_id:
+        form.plan_id.data = int(plan_id)
+    
+    return render_template('vendor/create_vouchers.html', 
+                         form=form, 
+                         plans=plans, 
+                         site=vendor_site.site)
+
+@app.route('/vendor/generate_vouchers', methods=['POST'])
+@login_required
+def generate_vouchers():
+    if current_user.user_type != 'vendor':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    if not vendor_site:
+        flash('Nenhum site atribuído.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    form = VoucherGenerationForm()
+    plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
+    form.plan_id.choices = [(plan.id, f"{plan.name} - R$ {plan.price:.2f}".replace('.', ',')) for plan in plans]
+    
+    if form.validate_on_submit():
+        try:
+            plan = VoucherPlan.query.get(form.plan_id.data)
+            if not plan or plan.site_id != vendor_site.site_id:
+                flash('Plano inválido.', 'error')
+                return redirect(url_for('create_vouchers'))
+            
+            # Get advanced options from form
+            code_length = int(request.form.get('code_length', 8))
+            code_form_str = request.form.get('code_form', '0,1')
+            code_form = [int(x) for x in code_form_str.split(',')]
+            limit_type = int(request.form.get('limit_type', 2))
+            limit_num = int(request.form.get('limit_num', 1)) if limit_type != 2 else None
+            description = request.form.get('description', '')
+            
+            # Convert plan duration to minutes for Omada API
+            duration_in_minutes = plan.duration
+            if plan.duration_unit == 'hours':
+                duration_in_minutes = plan.duration * 60
+            elif plan.duration_unit == 'days':
+                duration_in_minutes = plan.duration * 24 * 60
+            
+            # Prepare voucher data for Omada API
+            voucher_data = {
+                "name": f"{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "amount": form.quantity.data,
+                "codeLength": code_length,
+                "codeForm": code_form,
+                "limitType": limit_type,
+                "limitNum": limit_num,
+                "durationType": 0,  # Client duration
+                "duration": duration_in_minutes,
+                "timingType": 0,  # Timing by time
+                "rateLimit": {
+                    "mode": 0,  # Custom rate limit
+                    "customRateLimit": {
+                        "downLimitEnable": bool(plan.download_speed),
+                        "downLimit": (plan.download_speed * 1024) if plan.download_speed else 0,  # Convert Mbps to Kbps
+                        "upLimitEnable": bool(plan.upload_speed),
+                        "upLimit": (plan.upload_speed * 1024) if plan.upload_speed else 0  # Convert Mbps to Kbps
+                    }
+                },
+                "trafficLimitEnable": bool(plan.data_quota),
+                "trafficLimit": plan.data_quota or 0,
+                "trafficLimitFrequency": 0,  # Total
+                "unitPrice": int(plan.price * 100),  # Convert to cents
+                "currency": "BRL",
+                "applyToAllPortals": True,
+                "portals": [],
+                "logout": True,
+                "description": description or f"Vouchers gerados por {current_user.username}",
+                "printComments": f"Plano: {plan.name}",
+                "validityType": 0  # Can be used at any time
+            }
+            
+            # Create voucher group in Omada Controller
+            from omada_api import OmadaAPI
+            omada_api = OmadaAPI()
+            result = omada_api.create_voucher_group(vendor_site.site.site_id, voucher_data)
+            
+            if result and result.get('errorCode') == 0:
+                # Success - get the voucher group ID from Omada
+                omada_group_id = result.get('result', {}).get('id')
+                
+                # Generate local voucher codes for PDF
+                import random
+                import string
+                voucher_codes = []
+                char_set = ''
+                if 0 in code_form:  # Numbers
+                    char_set += string.digits
+                if 1 in code_form:  # Letters
+                    char_set += string.ascii_uppercase
+                
+                for _ in range(form.quantity.data):
+                    code = ''.join(random.choices(char_set, k=code_length))
+                    voucher_codes.append(code)
+                
+                # Create local voucher group record
+                voucher_group = VoucherGroup(
+                    site_id=vendor_site.site_id,
+                    plan_id=plan.id,
+                    created_by_id=current_user.id,
+                    quantity=form.quantity.data,
+                    omada_group_id=omada_group_id,
+                    voucher_codes=voucher_codes,
+                    total_value=plan.price * form.quantity.data
+                )
+                
+                db.session.add(voucher_group)
+                db.session.commit()
+                
+                flash(f'{form.quantity.data} vouchers gerados com sucesso!', 'success')
+                logging.info(f"Vouchers generated: {form.quantity.data} vouchers by {current_user.username} for plan {plan.name}")
+                
+                # Redirect to download the vouchers
+                return redirect(url_for('download_vouchers', voucher_group_id=voucher_group.id))
+            else:
+                error_msg = result.get('msg', 'Erro na API do Omada Controller') if result else 'Falha na comunicação com o Controller'
+                flash(f'Erro ao gerar vouchers: {error_msg}', 'error')
+                logging.error(f"Omada API error: {result}")
+                
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error generating vouchers: {str(e)}")
+            flash('Erro interno ao gerar vouchers.', 'error')
+    else:
+        flash('Dados inválidos. Verifique os campos.', 'error')
+    
+    return redirect(url_for('create_vouchers'))
+
+@app.route('/vendor/voucher_history')
+@login_required
+def voucher_history():
+    if current_user.user_type != 'vendor':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    if not vendor_site:
+        flash('Nenhum site atribuído.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Get filter parameters
+    plan_id = request.args.get('plan_id', type=int)
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Base query
+    query = VoucherGroup.query.filter_by(created_by_id=current_user.id)
+    
+    # Apply filters
+    if plan_id:
+        query = query.filter_by(plan_id=plan_id)
+    
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(VoucherGroup.created_at >= start_dt)
+        except ValueError:
+            flash('Data de início inválida.', 'error')
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(VoucherGroup.created_at <= end_dt)
+        except ValueError:
+            flash('Data de fim inválida.', 'error')
+    
+    # Get voucher groups
+    voucher_groups = query.order_by(VoucherGroup.created_at.desc()).all()
+    
+    # Calculate statistics
+    total_vouchers = sum(vg.quantity for vg in voucher_groups)
+    total_revenue = sum(vg.total_value for vg in voucher_groups)
+    total_groups = len(voucher_groups)
+    
+    # Calculate average per day
+    if voucher_groups:
+        first_date = min(vg.created_at for vg in voucher_groups).date()
+        last_date = max(vg.created_at for vg in voucher_groups).date()
+        days_diff = (last_date - first_date).days + 1
+        avg_per_day = total_vouchers / days_diff if days_diff > 0 else 0
+    else:
+        avg_per_day = 0
+    
+    # Get available plans for filter
+    plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id).all()
+    
+    return render_template('vendor/voucher_history.html',
+                         voucher_groups=voucher_groups,
+                         plans=plans,
+                         site=vendor_site.site,
+                         total_vouchers=total_vouchers,
+                         total_revenue=total_revenue,
+                         total_groups=total_groups,
+                         avg_per_day=avg_per_day,
+                         selected_plan_id=plan_id,
+                         start_date=start_date,
+                         end_date=end_date)
+
+@app.route('/vendor/download_vouchers/<int:voucher_group_id>')
+@login_required
+def download_vouchers(voucher_group_id):
+    if current_user.user_type != 'vendor':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
+    
+    # Check if this voucher group belongs to the current vendor
+    if voucher_group.created_by_id != current_user.id:
+        flash('Acesso negado a este grupo de vouchers.', 'error')
+        return redirect(url_for('voucher_history'))
+    
+    try:
+        # Generate PDF
+        pdf_data = generate_voucher_pdf(voucher_group, voucher_group.voucher_codes)
+        
+        # Create response
+        response = make_response(pdf_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=vouchers_{voucher_group.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        
+        logging.info(f"PDF downloaded: voucher group {voucher_group_id} by {current_user.username}")
+        return response
+        
+    except Exception as e:
+        logging.error(f"Error generating PDF: {str(e)}")
+        flash('Erro ao gerar PDF dos vouchers.', 'error')
+        return redirect(url_for('voucher_history'))
+
+@app.route('/vendor/sales_reports')
+@login_required  
+def vendor_sales_reports():
+    if current_user.user_type != 'vendor':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    if not vendor_site:
+        flash('Nenhum site atribuído.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Get date filters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Default to last 30 days if no dates provided
+    if not start_date:
+        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    if not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Generate report data
+    try:
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        
+        # Get voucher groups in date range
+        voucher_groups = VoucherGroup.query.filter(
+            VoucherGroup.created_by_id == current_user.id,
+            VoucherGroup.created_at >= start_dt,
+            VoucherGroup.created_at <= end_dt
+        ).all()
+        
+        # Calculate totals
+        total_vouchers = sum(vg.quantity for vg in voucher_groups)
+        total_revenue = sum(vg.total_value for vg in voucher_groups)
+        
+        # Group by plan
+        plan_stats = {}
+        for vg in voucher_groups:
+            plan_name = vg.plan.name
+            if plan_name not in plan_stats:
+                plan_stats[plan_name] = {
+                    'quantity': 0,
+                    'revenue': 0,
+                    'plan_price': vg.plan.price
+                }
+            plan_stats[plan_name]['quantity'] += vg.quantity
+            plan_stats[plan_name]['revenue'] += vg.total_value
+        
+        # Group by date
+        date_stats = {}
+        for vg in voucher_groups:
+            date_key = vg.created_at.strftime('%Y-%m-%d')
+            if date_key not in date_stats:
+                date_stats[date_key] = {
+                    'quantity': 0,
+                    'revenue': 0
+                }
+            date_stats[date_key]['quantity'] += vg.quantity
+            date_stats[date_key]['revenue'] += vg.total_value
+        
+        return render_template('vendor/sales_reports.html',
+                             site=vendor_site.site,
+                             voucher_groups=voucher_groups,
+                             total_vouchers=total_vouchers,
+                             total_revenue=total_revenue,
+                             plan_stats=plan_stats,
+                             date_stats=date_stats,
+                             start_date=start_date,
+                             end_date=end_date)
+                             
+    except ValueError:
+        flash('Datas inválidas fornecidas.', 'error')
+        return redirect(url_for('vendor_dashboard'))
 
 # Error handlers
 @app.errorhandler(404)
@@ -798,155 +1142,6 @@ def internal_error(error):
 @app.template_filter('currency')
 def currency_filter(value):
     return format_currency(value or 0)
-
-@app.template_filter('duration')
-def duration_filter(value, unit):
-    return format_duration(value, unit)
-@login_required
-def voucher_history():
-    if current_user.user_type != 'vendor':
-        flash('Acesso negado.', 'error')
-        return redirect(url_for('dashboard'))
-    
-    voucher_groups = VoucherGroup.query.filter_by(created_by_id=current_user.id).order_by(VoucherGroup.created_at.desc()).all()
-    
-    return render_template('vendor/voucher_history.html', voucher_groups=voucher_groups)
-
-@app.route('/vendor/download_vouchers/<int:voucher_group_id>')
-@login_required
-def download_vouchers(voucher_group_id):
-    if current_user.user_type != 'vendor':
-        flash('Acesso negado.', 'error')
-        return redirect(url_for('dashboard'))
-    
-    voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
-    
-    # Verify ownership
-    if voucher_group.created_by_id != current_user.id:
-        flash('Acesso negado.', 'error')
-        return redirect(url_for('voucher_history'))
-    
-    # Generate PDF
-    pdf_data = generate_voucher_pdf(voucher_group, voucher_group.voucher_codes)
-    
-    response = make_response(pdf_data)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=vouchers_{voucher_group_id}.pdf'
-    
-    return response
-
-@app.route('/vendor/sales_reports')
-@login_required
-def vendor_sales_reports():
-    if current_user.user_type != 'vendor':
-        flash('Acesso negado.', 'error')
-        return redirect(url_for('dashboard'))
-    
-    # Get vendor's site
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
-    if not vendor_site:
-        flash('Nenhum site atribuído. Contate o administrador.', 'error')
-        return redirect(url_for('login'))
-    
-    # Get date range from request
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    
-    if start_date:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d')
-    if end_date:
-        end_date = datetime.strptime(end_date, '%Y-%m-%d')
-    
-    # Get vendor's voucher groups
-    query = VoucherGroup.query.filter_by(
-        site_id=vendor_site.site_id,
-        created_by_id=current_user.id
-    )
-    
-    if start_date:
-        query = query.filter(VoucherGroup.created_at >= start_date)
-    if end_date:
-        query = query.filter(VoucherGroup.created_at <= end_date)
-    
-    voucher_groups = query.order_by(VoucherGroup.created_at.desc()).all()
-    
-    total_vouchers = sum(vg.quantity for vg in voucher_groups)
-    total_revenue = sum(vg.total_value for vg in voucher_groups)
-    
-    return render_template('vendor/sales_reports.html', 
-                         voucher_groups=voucher_groups,
-                         total_vouchers=total_vouchers,
-                         total_revenue=total_revenue,
-                         start_date=start_date,
-                         end_date=end_date)
-
-# API endpoints for charts and data
-@app.route('/api/sales_chart_data')
-@login_required
-def sales_chart_data():
-    site_id = None
-    
-    if current_user.user_type == 'admin':
-        site_id = session.get('current_site_id')
-    elif current_user.user_type == 'vendor':
-        vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
-        if vendor_site:
-            site_id = vendor_site.site_id
-    
-    if not site_id:
-        return jsonify({'error': 'Site não encontrado'}), 400
-    
-    # Get last 30 days data
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=30)
-    
-    # Get daily sales
-    daily_sales = {}
-    voucher_groups = VoucherGroup.query.filter(
-        VoucherGroup.site_id == site_id,
-        VoucherGroup.created_at >= start_date
-    ).all()
-    
-    for vg in voucher_groups:
-        # Filter by vendor if user is vendor
-        if current_user.user_type == 'vendor' and vg.created_by_id != current_user.id:
-            continue
-            
-        date_key = vg.created_at.date().isoformat()
-        if date_key not in daily_sales:
-            daily_sales[date_key] = 0
-        daily_sales[date_key] += vg.total_value
-    
-    # Fill missing dates with 0
-    current_date = start_date.date()
-    while current_date <= end_date.date():
-        date_key = current_date.isoformat()
-        if date_key not in daily_sales:
-            daily_sales[date_key] = 0
-        current_date += timedelta(days=1)
-    
-    # Sort by date
-    sorted_sales = sorted(daily_sales.items())
-    
-    return jsonify({
-        'labels': [item[0] for item in sorted_sales],
-        'data': [item[1] for item in sorted_sales]
-    })
-
-# Error handlers
-@app.errorhandler(404)
-def not_found(error):
-    return render_template('base.html', error_message='Página não encontrada'), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    db.session.rollback()
-    return render_template('base.html', error_message='Erro interno do servidor'), 500
-
-# Template filters
-@app.template_filter('currency')
-def currency_filter(value):
-    return format_currency(value)
 
 @app.template_filter('duration')
 def duration_filter(value, unit):

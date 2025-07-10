@@ -214,8 +214,33 @@ class OmadaAPI:
     
     def create_voucher_group(self, site_id: str, voucher_data: Dict) -> Optional[Dict]:
         """Create voucher group in Omada Controller"""
-        endpoint = f"sites/{site_id}/hotspot/vouchers"
-        return self._make_request('POST', endpoint, json=voucher_data)
+        endpoint = f"sites/{site_id}/hotspot/voucher-groups"
+        
+        logging.info(f"Creating voucher group for site {site_id} with data: {voucher_data}")
+        
+        # Use the full API response with error handling
+        if not self._ensure_valid_token():
+            logging.error("Failed to obtain valid token for voucher creation")
+            return None
+        
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/{endpoint}"
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            response = self.session.post(url, headers=headers, json=voucher_data)
+            response.raise_for_status()
+            
+            result = response.json()
+            logging.info(f"Voucher group creation response: {result}")
+            
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error creating voucher group: {str(e)}")
+            return None
     
     def get_voucher_summary(self, site_id: str, start_date: str = None, end_date: str = None) -> Optional[Dict]:
         """Get voucher summary from Omada Controller"""

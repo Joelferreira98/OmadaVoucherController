@@ -1,64 +1,129 @@
 {% extends "base.html" %}
 
-{% block title %}Criar Vouchers{% endblock %}
+{% block title %}Gerar Vouchers - {{ site.name }}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Criar Vouchers</h1>
-            <div class="text-muted">
-                <i class="fas fa-building me-2"></i>{{ site.name }}
+            <div>
+                <h1>Gerar Vouchers</h1>
+                <small class="text-muted">Site: {{ site.name }}</small>
             </div>
+            <a href="{{ url_for('vendor_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Voltar ao Dashboard
+            </a>
         </div>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-md-8">
+    <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h5>Selecionar Plano e Quantidade</h5>
+                <h5 class="mb-0">Configuração dos Vouchers</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('generate_vouchers') }}">
-                    <div class="mb-4">
-                        <label class="form-label">Plano de Voucher</label>
-                        <select class="form-select" name="plan_id" id="planSelect" required onchange="updatePlanDetails()">
-                            <option value="">Selecione um plano</option>
-                            {% for plan in plans %}
-                                <option value="{{ plan.id }}" 
-                                        data-price="{{ plan.price }}"
-                                        data-duration="{{ plan.duration }}"
-                                        data-unit="{{ plan.duration_unit }}"
-                                        data-quota="{{ plan.data_quota or 'Ilimitado' }}"
-                                        data-speed="{{ plan.download_speed or 'Ilimitado' }}">
-                                    {{ plan.name }} - {{ plan.price | currency }}
-                                </option>
-                            {% endfor %}
-                        </select>
+                <form method="POST" action="{{ url_for('generate_vouchers') }}" id="voucherForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Plan Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.plan_id.label.text }}</label>
+                        {{ form.plan_id(class="form-select", id="planSelect", onchange="updatePlanInfo()") }}
+                        {% if form.plan_id.errors %}
+                            <div class="text-danger small">{{ form.plan_id.errors[0] }}</div>
+                        {% endif %}
                     </div>
                     
-                    <div class="mb-4">
-                        <label class="form-label">Quantidade</label>
-                        <input type="number" class="form-control" name="quantity" id="quantityInput" min="1" max="1000" required onchange="updateTotal()">
-                        <div class="form-text">Máximo: 1000 vouchers por vez</div>
+                    <!-- Plan Info Display -->
+                    <div id="planInfo" class="alert alert-info" style="display: none;">
+                        <h6>Informações do Plano:</h6>
+                        <div id="planDetails"></div>
                     </div>
                     
-                    <div class="mb-4">
-                        <div class="card bg-light">
+                    <!-- Quantity -->
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.quantity.label.text }}</label>
+                        {{ form.quantity(class="form-control", id="quantityInput", onchange="calculateTotal()", min="1", max="1000") }}
+                        {% if form.quantity.errors %}
+                            <div class="text-danger small">{{ form.quantity.errors[0] }}</div>
+                        {% endif %}
+                        <div class="form-text">Máximo: 1000 vouchers por lote</div>
+                    </div>
+                    
+                    <!-- Advanced Options -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#advancedOptions">
+                                    <i class="fas fa-cog me-2"></i>Opções Avançadas
+                                </button>
+                            </h6>
+                        </div>
+                        <div class="collapse" id="advancedOptions">
                             <div class="card-body">
-                                <h6>Resumo do Pedido</h6>
-                                <div id="orderSummary">
-                                    <p class="text-muted">Selecione um plano e quantidade para ver o resumo</p>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Comprimento do Código</label>
+                                        <select class="form-select" name="code_length" id="codeLength">
+                                            <option value="8" selected>8 caracteres</option>
+                                            <option value="6">6 caracteres</option>
+                                            <option value="7">7 caracteres</option>
+                                            <option value="9">9 caracteres</option>
+                                            <option value="10">10 caracteres</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Tipo de Caracteres</label>
+                                        <select class="form-select" name="code_form" id="codeForm">
+                                            <option value="0,1" selected>Números e Letras</option>
+                                            <option value="0">Apenas Números</option>
+                                            <option value="1">Apenas Letras</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Tipo de Limite</label>
+                                        <select class="form-select" name="limit_type" id="limitType">
+                                            <option value="2" selected>Ilimitado</option>
+                                            <option value="0">Limite de Uso</option>
+                                            <option value="1">Usuários Simultâneos</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Número do Limite</label>
+                                        <input type="number" class="form-control" name="limit_num" id="limitNum" 
+                                               value="1" min="1" max="999" disabled>
+                                        <div class="form-text">Ativo apenas quando há limite definido</div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Descrição (Opcional)</label>
+                                    <textarea class="form-control" name="description" rows="2" 
+                                              placeholder="Descrição adicional para o lote de vouchers"></textarea>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
+                    <!-- Total Calculation -->
+                    <div class="alert alert-success">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Total de Vouchers:</strong> <span id="totalVouchers">0</span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Valor Total:</strong> R$ <span id="totalValue">0,00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-plus me-2"></i>Criar Vouchers
+                        <button type="submit" class="btn btn-primary btn-lg" id="generateBtn" disabled>
+                            <i class="fas fa-cogs me-2"></i>Gerar Vouchers
                         </button>
                     </div>
                 </form>
@@ -66,33 +131,44 @@
         </div>
     </div>
     
-    <div class="col-md-4">
+    <div class="col-lg-4">
+        <!-- Help Card -->
         <div class="card">
             <div class="card-header">
-                <h5>Planos Disponíveis</h5>
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Como Funciona</h6>
             </div>
             <div class="card-body">
-                {% if plans %}
-                    {% for plan in plans %}
-                    <div class="card mb-3 plan-card" data-plan-id="{{ plan.id }}">
-                        <div class="card-body">
-                            <h6 class="card-title">{{ plan.name }}</h6>
-                            <div class="text-muted small">
-                                <div><i class="fas fa-clock me-2"></i>{{ plan.duration | duration(plan.duration_unit) }}</div>
-                                <div><i class="fas fa-dollar-sign me-2"></i>{{ plan.price | currency }}</div>
-                                {% if plan.data_quota %}
-                                    <div><i class="fas fa-database me-2"></i>{{ plan.data_quota }} MB</div>
-                                {% endif %}
-                                {% if plan.download_speed %}
-                                    <div><i class="fas fa-tachometer-alt me-2"></i>{{ plan.download_speed }} Mbps</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-muted">Nenhum plano disponível. Contate o administrador.</p>
-                {% endif %}
+                <ol class="small">
+                    <li>Selecione o plano desejado</li>
+                    <li>Defina a quantidade de vouchers</li>
+                    <li>Configure opções avançadas se necessário</li>
+                    <li>Clique em "Gerar Vouchers"</li>
+                    <li>Aguarde o processamento</li>
+                    <li>Faça o download do PDF gerado</li>
+                </ol>
+                
+                <div class="mt-3">
+                    <h6>Dicas:</h6>
+                    <ul class="small text-muted">
+                        <li>Vouchers são únicos e não podem ser duplicados</li>
+                        <li>O PDF pode ser impresso diretamente</li>
+                        <li>Codes mais longos são mais seguros</li>
+                        <li>Mantenha registro dos vouchers gerados</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Atividade Recente</h6>
+            </div>
+            <div class="card-body">
+                <div class="small text-muted">
+                    <p>Última geração de vouchers realizada em:</p>
+                    <p><strong>{{ moment().format('DD/MM/YYYY HH:mm') if recent_vouchers else 'Nenhuma atividade ainda' }}</strong></p>
+                </div>
             </div>
         </div>
     </div>
@@ -101,66 +177,117 @@
 
 {% block scripts %}
 <script>
-function updatePlanDetails() {
-    const select = document.getElementById('planSelect');
-    const selectedOption = select.options[select.selectedIndex];
+// Plans data for JavaScript calculations
+const plansData = {
+    {% for plan in plans %}
+    {{ plan.id }}: {
+        name: "{{ plan.name }}",
+        price: {{ plan.price }},
+        duration: {{ plan.duration }},
+        duration_unit: "{{ plan.duration_unit }}",
+        data_quota: {{ plan.data_quota or 'null' }},
+        download_speed: {{ plan.download_speed or 'null' }},
+        upload_speed: {{ plan.upload_speed or 'null' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+function updatePlanInfo() {
+    const planSelect = document.getElementById('planSelect');
+    const planInfo = document.getElementById('planInfo');
+    const planDetails = document.getElementById('planDetails');
     
-    if (selectedOption.value) {
-        const price = parseFloat(selectedOption.dataset.price);
-        const duration = selectedOption.dataset.duration;
-        const unit = selectedOption.dataset.unit;
-        const quota = selectedOption.dataset.quota;
-        const speed = selectedOption.dataset.speed;
+    if (planSelect.value && plansData[planSelect.value]) {
+        const plan = plansData[planSelect.value];
         
-        // Update summary
-        updateTotal();
+        let details = `
+            <div><strong>Preço:</strong> R$ ${plan.price.toFixed(2).replace('.', ',')}</div>
+            <div><strong>Duração:</strong> ${plan.duration} ${plan.duration_unit}</div>
+        `;
         
-        // Highlight selected plan
-        document.querySelectorAll('.plan-card').forEach(card => {
-            card.classList.remove('border-primary');
-        });
-        
-        const planCard = document.querySelector(`[data-plan-id="${selectedOption.value}"]`);
-        if (planCard) {
-            planCard.classList.add('border-primary');
+        if (plan.data_quota) {
+            details += `<div><strong>Franquia:</strong> ${plan.data_quota} MB</div>`;
         }
+        
+        if (plan.download_speed) {
+            details += `<div><strong>Velocidade:</strong> ${plan.download_speed}/${plan.upload_speed || 0} Mbps</div>`;
+        }
+        
+        planDetails.innerHTML = details;
+        planInfo.style.display = 'block';
+        
+        calculateTotal();
+    } else {
+        planInfo.style.display = 'none';
     }
 }
 
-function updateTotal() {
-    const select = document.getElementById('planSelect');
+function calculateTotal() {
+    const planSelect = document.getElementById('planSelect');
     const quantityInput = document.getElementById('quantityInput');
-    const summaryDiv = document.getElementById('orderSummary');
+    const totalVouchers = document.getElementById('totalVouchers');
+    const totalValue = document.getElementById('totalValue');
+    const generateBtn = document.getElementById('generateBtn');
     
-    const selectedOption = select.options[select.selectedIndex];
     const quantity = parseInt(quantityInput.value) || 0;
+    const planId = planSelect.value;
     
-    if (selectedOption.value && quantity > 0) {
-        const price = parseFloat(selectedOption.dataset.price);
-        const total = price * quantity;
+    if (planId && plansData[planId] && quantity > 0) {
+        const plan = plansData[planId];
+        const total = plan.price * quantity;
         
-        summaryDiv.innerHTML = `
-            <div class="row">
-                <div class="col-6">Plano:</div>
-                <div class="col-6">${selectedOption.text}</div>
-            </div>
-            <div class="row">
-                <div class="col-6">Quantidade:</div>
-                <div class="col-6">${quantity}</div>
-            </div>
-            <div class="row">
-                <div class="col-6">Valor Unit.:</div>
-                <div class="col-6">R$ ${price.toFixed(2).replace('.', ',')}</div>
-            </div>
-            <hr>
-            <div class="row">
-                <div class="col-6"><strong>Total:</strong></div>
-                <div class="col-6"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></div>
-            </div>
-        `;
+        totalVouchers.textContent = quantity;
+        totalValue.textContent = total.toFixed(2).replace('.', ',');
+        generateBtn.disabled = false;
     } else {
-        summaryDiv.innerHTML = '<p class="text-muted">Selecione um plano e quantidade para ver o resumo</p>';
+        totalVouchers.textContent = '0';
+        totalValue.textContent = '0,00';
+        generateBtn.disabled = true;
     }
 }
+
+// Enable/disable limit number based on limit type
+document.getElementById('limitType').addEventListener('change', function() {
+    const limitNum = document.getElementById('limitNum');
+    if (this.value === '2') { // Unlimited
+        limitNum.disabled = true;
+        limitNum.value = '';
+    } else {
+        limitNum.disabled = false;
+        limitNum.value = '1';
+    }
+});
+
+// Form validation
+document.getElementById('voucherForm').addEventListener('submit', function(e) {
+    const planSelect = document.getElementById('planSelect');
+    const quantityInput = document.getElementById('quantityInput');
+    
+    if (!planSelect.value) {
+        e.preventDefault();
+        alert('Por favor, selecione um plano.');
+        return false;
+    }
+    
+    const quantity = parseInt(quantityInput.value);
+    if (!quantity || quantity < 1 || quantity > 1000) {
+        e.preventDefault();
+        alert('Por favor, insira uma quantidade válida (1-1000).');
+        return false;
+    }
+    
+    // Show loading state
+    const btn = document.getElementById('generateBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Gerando...';
+    btn.disabled = true;
+    
+    return true;
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updatePlanInfo();
+    calculateTotal();
+});
 </script>
 {% endblock %}
