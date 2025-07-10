@@ -3,278 +3,276 @@
 {% block title %}Relatórios de Vendas - {{ site.name }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1>Relatórios de Vendas</h1>
-                <small class="text-muted">Site: {{ site.name }}</small>
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Relatórios de Vendas</h1>
+                    <p class="text-muted mb-0 mt-1">{{ site.name }}</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('vendor_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Dashboard
+                    </a>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i>Imprimir
+                    </button>
+                </div>
             </div>
-            <a href="{{ url_for('vendor_dashboard') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Voltar ao Dashboard
-            </a>
         </div>
     </div>
-</div>
 
-<!-- Date Filter -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Período do Relatório</h6>
-            </div>
-            <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Data Início</label>
-                        <input type="date" name="start_date" class="form-control" value="{{ start_date }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Data Fim</label>
-                        <input type="date" name="end_date" class="form-control" value="{{ end_date }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">&nbsp;</label>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-chart-line me-2"></i>Gerar Relatório
+    <!-- Filters Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body py-3">
+                    <form method="GET" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small fw-medium">Data Início</label>
+                            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small fw-medium">Data Fim</label>
+                            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="submit" class="btn btn-dark btn-sm px-4">
+                                <i class="fas fa-chart-line me-1"></i>Gerar Relatório
                             </button>
                         </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-plus-circle fa-2x text-secondary opacity-75"></i>
                     </div>
-                </form>
+                    <h3 class="fw-bold text-dark mb-1">{{ total_vouchers_generated }}</h3>
+                    <p class="text-muted mb-0 small">Vouchers Gerados</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-check-circle fa-2x text-success opacity-75"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-1">{{ total_vouchers_sold }}</h3>
+                    <p class="text-muted mb-0 small">Vouchers Vendidos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-dollar-sign fa-2x text-primary opacity-75"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark mb-1">R$ {{ "%.2f"|format(total_revenue)|replace('.', ',') }}</h3>
+                    <p class="text-muted mb-0 small">Receita Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-percentage fa-2x text-info opacity-75"></i>
+                    </div>
+                    {% set conversion_rate = (total_vouchers_sold / total_vouchers_generated * 100) if total_vouchers_generated > 0 else 0 %}
+                    <h3 class="fw-bold text-dark mb-1">{{ conversion_rate|round(1) }}%</h3>
+                    <p class="text-muted mb-0 small">Taxa de Conversão</p>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-ticket-alt fa-2x text-primary mb-2"></i>
-                <h4 class="text-primary">{{ total_vouchers_generated }}</h4>
-                <p class="text-muted mb-0">Vouchers Gerados</p>
-                <small class="text-muted">{{ start_date }} a {{ end_date }}</small>
+    <!-- Analytics Section -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-0">Vendas por Plano</h6>
+                </div>
+                <div class="card-body pt-2">
+                    {% if plan_stats %}
+                        <div class="table-responsive">
+                            <table class="table table-borderless table-sm mb-0">
+                                <thead>
+                                    <tr class="text-muted small">
+                                        <th class="border-0 fw-medium">Plano</th>
+                                        <th class="border-0 fw-medium text-center">Vendidos</th>
+                                        <th class="border-0 fw-medium text-end">Receita</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for plan_name, stats in plan_stats.items() %}
+                                    <tr>
+                                        <td class="py-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                    <i class="fas fa-tag text-muted small"></i>
+                                                </div>
+                                                <span class="fw-medium">{{ stats.plan_name }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-2 text-center">
+                                            <span class="badge bg-primary rounded-pill">{{ stats.vouchers }}</span>
+                                        </td>
+                                        <td class="py-2 text-end">
+                                            <span class="fw-bold">R$ {{ "%.2f"|format(stats.revenue)|replace('.', ',') }}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-tags fa-2x text-muted opacity-50"></i>
+                            <p class="text-muted mt-2 mb-0">Nenhuma venda encontrada</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-0">Vendas por Data</h6>
+                </div>
+                <div class="card-body pt-2">
+                    {% if date_stats %}
+                        <div class="table-responsive">
+                            <table class="table table-borderless table-sm mb-0">
+                                <thead>
+                                    <tr class="text-muted small">
+                                        <th class="border-0 fw-medium">Data</th>
+                                        <th class="border-0 fw-medium text-center">Vendidos</th>
+                                        <th class="border-0 fw-medium text-end">Receita</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for date, stats in date_stats.items()|sort(reverse=True) %}
+                                    <tr>
+                                        <td class="py-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                    <i class="fas fa-calendar text-muted small"></i>
+                                                </div>
+                                                <span class="fw-medium">{{ date }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-2 text-center">
+                                            <span class="badge bg-success rounded-pill">{{ stats.vouchers }}</span>
+                                        </td>
+                                        <td class="py-2 text-end">
+                                            <span class="fw-bold">R$ {{ "%.2f"|format(stats.revenue)|replace('.', ',') }}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-alt fa-2x text-muted opacity-50"></i>
+                            <p class="text-muted mt-2 mb-0">Nenhuma venda encontrada</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                <h4 class="text-success">{{ total_vouchers_sold }}</h4>
-                <p class="text-muted mb-0">Vouchers Vendidos</p>
-                <small class="text-muted">Expirados + Usados</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-dollar-sign fa-2x text-success mb-2"></i>
-                <h4 class="text-success">R$ {{ total_revenue|currency }}</h4>
-                <p class="text-muted mb-0">Receita Efetiva</p>
-                <small class="text-muted">Baseada em vendas reais</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-percentage fa-2x text-info mb-2"></i>
-                {% set conversion_rate = (total_vouchers_sold / total_vouchers_generated * 100) if total_vouchers_generated > 0 else 0 %}
-                <h4 class="text-info">{{ conversion_rate|round(1) }}%</h4>
-                <p class="text-muted mb-0">Taxa de Conversão</p>
-                <small class="text-muted">Vendidos / Gerados</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Charts Row -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Vendas por Plano</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="planChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Vendas por Dia</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="timeChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Detailed Tables -->
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Estatísticas por Plano</h6>
-            </div>
-            <div class="card-body">
-                {% if plan_stats %}
+    <!-- Voucher Details Table -->
+    {% if sold_vouchers %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-dark mb-0">Vouchers Vendidos</h6>
+                    <button onclick="exportToCSV()" class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                </div>
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Plano</th>
-                                    <th>Vendidos</th>
-                                    <th>Receita</th>
-                                    <th>%</th>
+                        <table class="table table-hover mb-0" id="vouchersTable">
+                            <thead class="table-light">
+                                <tr class="small text-muted">
+                                    <th class="border-0 fw-medium ps-4">Código</th>
+                                    <th class="border-0 fw-medium">Plano</th>
+                                    <th class="border-0 fw-medium">Status</th>
+                                    <th class="border-0 fw-medium text-end">Valor</th>
+                                    <th class="border-0 fw-medium text-end pe-4">Data</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for plan_name, stats in plan_stats.items() %}
-                                <tr>
-                                    <td>{{ stats.plan_name }}</td>
-                                    <td>
-                                        <span class="badge bg-success">{{ stats.vouchers }}</span> vendidos
+                                {% for voucher in sold_vouchers %}
+                                <tr class="border-bottom border-light">
+                                    <td class="ps-4 py-3">
+                                        <code class="text-dark bg-light px-2 py-1 rounded small">{{ voucher.code }}</code>
                                     </td>
-                                    <td><strong>R$ {{ "%.2f"|format(stats.revenue)|replace('.', ',') }}</strong></td>
-                                    <td>
-                                        {% if total_revenue > 0 %}
-                                            {{ "%.1f"|format((stats.revenue / total_revenue) * 100) }}%
-                                        {% else %}
-                                            0.0%
-                                        {% endif %}
+                                    <td class="py-3">
+                                        <span class="fw-medium text-dark">{{ voucher.plan_name }}</span>
+                                    </td>
+                                    <td class="py-3">
+                                        <span class="badge {% if voucher.status_class == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} rounded-pill">
+                                            {{ voucher.status }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 text-end">
+                                        <span class="fw-bold text-dark">R$ {{ "%.2f"|format(voucher.plan_price)|replace('.', ',') }}</span>
+                                    </td>
+                                    <td class="py-3 text-end pe-4">
+                                        <span class="text-muted small">{{ voucher.created_at.strftime('%d/%m/%Y') }}</span><br>
+                                        <span class="text-muted" style="font-size: 11px;">{{ voucher.created_at.strftime('%H:%M') }}</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-chart-pie fa-2x text-muted mb-2"></i>
-                        <p class="text-muted">Nenhuma venda no período selecionado.</p>
+                    
+                    <div class="px-4 py-3 bg-light">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            {{ sold_vouchers|length }} voucher(s) vendido(s) no período selecionado
+                        </small>
                     </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">Vendas Diárias</h6>
-            </div>
-            <div class="card-body">
-                {% if date_stats %}
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Data</th>
-                                    <th>Vendidos</th>
-                                    <th>Receita</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for date, stats in date_stats.items()|sort(reverse=True) %}
-                                <tr>
-                                    <td>{{ date }}</td>
-                                    <td>
-                                        <span class="badge bg-success">{{ stats.vouchers }}</span> vendidos
-                                    </td>
-                                    <td>R$ {{ "%.2f"|format(stats.revenue)|replace('.', ',') }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
-                        <p class="text-muted">Nenhuma venda no período selecionado.</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Vouchers Vendidos (Individual) -->
-{% if sold_vouchers %}
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Vouchers Vendidos (Expirados e Em Uso)</h6>
-                <button onclick="exportToCSV()" class="btn btn-sm btn-outline-success">
-                    <i class="fas fa-file-csv me-1"></i>Exportar CSV
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover" id="vouchersTable">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Plano</th>
-                                <th>Status</th>
-                                <th>Valor</th>
-                                <th>Data Criação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for voucher in sold_vouchers %}
-                            <tr>
-                                <td>
-                                    <code class="text-primary">{{ voucher.code }}</code>
-                                </td>
-                                <td>
-                                    <strong>{{ voucher.plan_name }}</strong>
-                                </td>
-                                <td>
-                                    <span class="badge bg-{{ voucher.status_class }}">
-                                        {{ voucher.status }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <strong>R$ {{ "%.2f"|format(voucher.plan_price)|replace('.', ',') }}</strong>
-                                </td>
-                                <td>{{ voucher.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <small class="text-muted">
-                        Mostrando {{ sold_vouchers|length }} voucher(s) vendido(s)
-                    </small>
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% else %}
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body text-center py-5">
-                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">Nenhum voucher vendido</h5>
-                <p class="text-muted">Não há vouchers expirados ou em uso no período selecionado.</p>
+    {% else %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-chart-line fa-3x text-muted opacity-25"></i>
+                    </div>
+                    <h6 class="text-muted mb-2">Nenhum voucher vendido</h6>
+                    <p class="text-muted small mb-0">Não há vouchers expirados ou em uso no período selecionado.</p>
+                </div>
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
-{% endif %}
 
 {% endblock %}
 
