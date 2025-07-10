@@ -113,6 +113,14 @@
                         {% endif %}
                     </div>
                     <div class="mb-3">
+                        <strong>Credenciais Atuais:</strong><br>
+                        <small class="text-muted">
+                            Client ID: {{ config.client_id[:8] + '...' if config.client_id else 'Não configurado' }}<br>
+                            Client Secret: {{ '***' + config.client_secret[-4:] if config.client_secret else 'Não configurado' }}<br>
+                            Omadac ID: {{ config.omadac_id[:8] + '...' if config.omadac_id else 'Não configurado' }}
+                        </small>
+                    </div>
+                    <div class="mb-3">
                         <strong>Última Atualização:</strong><br>
                         <small class="text-muted">{{ config.updated_at.strftime('%d/%m/%Y %H:%M') if config.updated_at else 'Não atualizado' }}</small>
                     </div>
@@ -138,6 +146,14 @@
                     <li>Insira as informações no formulário</li>
                     <li>Teste a conexão</li>
                 </ol>
+                <div class="alert alert-warning mt-3">
+                    <strong>Atenção:</strong> Se você receber erro "Client Id Or Client Secret is Invalid", as credenciais podem estar expiradas ou incorretas. Verifique se:
+                    <ul class="small mb-0">
+                        <li>As credenciais estão corretas</li>
+                        <li>A aplicação API está ativa no Omada Controller</li>
+                        <li>O Omadac ID está correto</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

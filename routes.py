@@ -229,14 +229,24 @@ def test_connection():
         return jsonify({'success': False, 'message': 'Acesso negado'})
     
     try:
+        # Get current configuration
+        config = OmadaConfig.query.filter_by(is_active=True).first()
+        if not config:
+            return jsonify({'success': False, 'message': 'Configuração não encontrada. Salve a configuração primeiro.'})
+        
         # Test connection using the Omada API
         token = omada_api.get_access_token()
         if token:
-            return jsonify({'success': True, 'message': 'Conexão estabelecida com sucesso'})
+            # If successful, try to get sites to verify full API access
+            sites = omada_api.get_sites(page=1, page_size=1)
+            if sites is not None:
+                return jsonify({'success': True, 'message': f'Conexão estabelecida com sucesso! Token obtido e API funcionando.'})
+            else:
+                return jsonify({'success': True, 'message': 'Token obtido, mas houve problema ao acessar os sites.'})
         else:
-            return jsonify({'success': False, 'message': 'Falha na autenticação'})
+            return jsonify({'success': False, 'message': 'Falha na autenticação. Verifique suas credenciais.'})
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({'success': False, 'message': f'Erro na conexão: {str(e)}'})
 
 # Admin Routes
 @app.route('/admin/site_selection')

@@ -85,10 +85,18 @@ class OmadaAPI:
             
             headers = {'Content-Type': 'application/json'}
             
+            # Log debug information (without sensitive data)
+            logging.info(f"Attempting token request to: {url}")
+            logging.info(f"Using omadacId: {self.omadac_id}")
+            logging.info(f"Using client_id: {self.client_id}")
+            logging.info(f"Client secret configured: {'Yes' if self.client_secret else 'No'}")
+            
             response = self.session.post(url, json=data, headers=headers)
             response.raise_for_status()
             
             result = response.json()
+            logging.info(f"API Response: {result}")
+            
             if result.get('errorCode') == 0:
                 token_data = result['result']
                 self._save_config({
@@ -96,9 +104,11 @@ class OmadaAPI:
                     'refresh_token': token_data.get('refreshToken'),
                     'expires_in': token_data.get('expiresIn', 3600)
                 })
+                logging.info("Token obtained successfully")
                 return token_data['accessToken']
             else:
-                logging.error(f"Failed to get access token: {result.get('msg')}")
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Failed to get access token: {error_msg}")
                 return None
                 
         except Exception as e:
