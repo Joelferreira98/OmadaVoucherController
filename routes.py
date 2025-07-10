@@ -833,29 +833,40 @@ def admin_generate_vouchers():
             elif plan.duration_unit == 'days':
                 duration_minutes = plan.duration * 24 * 60
             
-            # Prepare voucher data for Omada API
+            # Prepare voucher data for Omada API following exact vendor specification
             voucher_data = {
                 "name": f"{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                "type": 2,  # Multi-use voucher
-                "voucherNum": form.quantity.data,
-                "timeValid": duration_minutes,
+                "amount": form.quantity.data,
                 "codeLength": plan.code_length,
-                "codeType": 0,  # Number only
+                "codeForm": [0],  # Always use numbers only
                 "limitType": plan.limit_type,
-                "note": f"Gerado por {current_user.username}"
+                "durationType": 0,  # Client duration
+                "duration": duration_minutes,
+                "timingType": 0,  # Timing by time
+                "rateLimit": {
+                    "mode": 0,  # Custom rate limit
+                    "customRateLimit": {
+                        "downLimitEnable": bool(plan.download_speed),
+                        "downLimit": (plan.download_speed * 1024) if plan.download_speed else 0,  # Convert Mbps to Kbps
+                        "upLimitEnable": bool(plan.upload_speed),
+                        "upLimit": (plan.upload_speed * 1024) if plan.upload_speed else 0  # Convert Mbps to Kbps
+                    }
+                },
+                "trafficLimitEnable": bool(plan.data_quota),
+                "applyToAllPortals": True,
+                "logout": True,
+                "description": f"Vouchers gerados por {current_user.username}",
+                "printComments": f"Plano: {plan.name}",
+                "validityType": 0  # Can be used at any time
             }
             
-            # Add optional fields
-            if plan.limit_num and plan.limit_type != 2:
+            # Add optional fields only if they have values
+            if plan.limit_type != 2 and plan.limit_num:
                 voucher_data["limitNum"] = plan.limit_num
+            
             if plan.data_quota:
-                voucher_data["dataQuota"] = plan.data_quota
-            if plan.download_speed:
-                voucher_data["downloadLimited"] = True
-                voucher_data["downloadSpeed"] = plan.download_speed
-            if plan.upload_speed:
-                voucher_data["uploadLimited"] = True
-                voucher_data["uploadSpeed"] = plan.upload_speed
+                voucher_data["trafficLimit"] = plan.data_quota
+                voucher_data["trafficLimitFrequency"] = 0  # Total
             
             # Create voucher group in Omada Controller
             from omada_api import omada_api
