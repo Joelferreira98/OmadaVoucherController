@@ -7,6 +7,10 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Install PyMySQL as MySQLdb
 pymysql.install_as_MySQLdb()
