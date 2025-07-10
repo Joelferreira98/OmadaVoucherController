@@ -24,12 +24,21 @@
 
 <!-- Statistics Summary -->
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card text-center">
             <div class="card-body">
                 <i class="fas fa-ticket-alt fa-2x text-primary mb-2"></i>
-                <h4 class="text-primary">{{ total_vouchers }}</h4>
-                <p class="text-muted mb-0">Total de Vouchers</p>
+                <h5 class="text-primary">{{ total_vouchers_generated }}</h5>
+                <p class="text-muted mb-0">Vouchers Gerados</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h5 class="text-success">{{ total_vouchers_sold }}</h5>
+                <p class="text-muted mb-0">Vouchers Vendidos</p>
             </div>
         </div>
     </div>
@@ -38,25 +47,28 @@
             <div class="card-body">
                 <i class="fas fa-dollar-sign fa-2x text-success mb-2"></i>
                 <h4 class="text-success">R$ {{ total_revenue|currency }}</h4>
-                <p class="text-muted mb-0">Receita Total</p>
+                <p class="text-muted mb-0">Receita Efetiva</p>
+                <small class="text-muted">Apenas vouchers vendidos</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card text-center">
             <div class="card-body">
                 <i class="fas fa-layer-group fa-2x text-info mb-2"></i>
-                <h4 class="text-info">{{ total_groups }}</h4>
-                <p class="text-muted mb-0">Grupos de Vouchers</p>
+                <h5 class="text-info">{{ total_groups }}</h5>
+                <p class="text-muted mb-0">Grupos</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <i class="fas fa-calendar-alt fa-2x text-warning mb-2"></i>
-                <h4 class="text-warning">{{ avg_per_day|round(0)|int }}</h4>
-                <p class="text-muted mb-0">Média por Dia</p>
+                <i class="fas fa-sync-alt fa-2x text-warning mb-2"></i>
+                <a href="{{ url_for('sync_voucher_status', site_id=site.id) }}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-sync-alt me-1"></i>Sincronizar Status
+                </a>
+                <p class="text-muted mb-0 mt-2">Atualizar dados do Omada</p>
             </div>
         </div>
     </div>
@@ -120,9 +132,9 @@
                                 <tr>
                                     <th>Data/Hora</th>
                                     <th>Plano</th>
-                                    <th>Quantidade</th>
-                                    <th>Valor Total</th>
-                                    <th>Status</th>
+                                    <th>Gerados/Vendidos</th>
+                                    <th>Receita Real</th>
+                                    <th>Status Detalhado</th>
                                     <th>Omada ID</th>
                                     <th>Ações</th>
                                 </tr>
@@ -139,15 +151,35 @@
                                         <small class="text-muted">R$ {{ vg.plan.price|currency }} cada</small>
                                     </td>
                                     <td>
-                                        <span class="badge bg-primary">{{ vg.quantity }}</span>
+                                        <div>
+                                            <span class="badge bg-primary">{{ vg.quantity }}</span> gerados
+                                        </div>
+                                        <div class="mt-1">
+                                            <span class="badge bg-success">{{ (vg.expired_count or 0) + (vg.used_count or 0) }}</span> vendidos
+                                        </div>
                                     </td>
                                     <td>
-                                        <strong>R$ {{ vg.total_value|currency }}</strong>
+                                        {% set sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0) %}
+                                        <strong>R$ {{ (sold_vouchers * vg.plan.price)|currency }}</strong>
+                                        <div class="small text-muted">
+                                            {{ sold_vouchers }} × R$ {{ vg.plan.price|currency }}
+                                        </div>
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ 'success' if vg.status == 'active' else 'secondary' }}">
-                                            {{ vg.status.title() }}
-                                        </span>
+                                        {% if vg.last_sync %}
+                                            <div class="small">
+                                                {% if vg.unused_count %}<span class="badge bg-secondary">{{ vg.unused_count }} não usados</span>{% endif %}
+                                                {% if vg.used_count %}<span class="badge bg-success">{{ vg.used_count }} usados</span>{% endif %}
+                                                {% if vg.in_use_count %}<span class="badge bg-warning">{{ vg.in_use_count }} em uso</span>{% endif %}
+                                                {% if vg.expired_count %}<span class="badge bg-danger">{{ vg.expired_count }} expirados</span>{% endif %}
+                                            </div>
+                                            <div class="small text-muted mt-1">
+                                                Atualizado: {{ vg.last_sync.strftime('%d/%m %H:%M') }}
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-warning">Não sincronizado</span>
+                                            <div class="small text-muted">Clique em "Sincronizar Status" acima</div>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if vg.omada_group_id %}

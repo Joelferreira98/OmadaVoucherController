@@ -1015,17 +1015,18 @@ def voucher_history():
     # Get voucher groups
     voucher_groups = query.order_by(VoucherGroup.created_at.desc()).all()
     
-    # Calculate statistics
-    total_vouchers = sum(vg.quantity for vg in voucher_groups)
-    total_revenue = sum(vg.total_value for vg in voucher_groups)
+    # Calculate statistics based on actual sales (expired + used vouchers)
+    total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
+    total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) for vg in voucher_groups)
+    total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0)) * vg.plan.price for vg in voucher_groups)
     total_groups = len(voucher_groups)
     
-    # Calculate average per day
+    # Calculate average per day for sold vouchers
     if voucher_groups:
         first_date = min(vg.created_at for vg in voucher_groups).date()
         last_date = max(vg.created_at for vg in voucher_groups).date()
         days_diff = (last_date - first_date).days + 1
-        avg_per_day = total_vouchers / days_diff if days_diff > 0 else 0
+        avg_per_day = total_vouchers_sold / days_diff if days_diff > 0 else 0
     else:
         avg_per_day = 0
     
@@ -1036,7 +1037,8 @@ def voucher_history():
                          voucher_groups=voucher_groups,
                          plans=plans,
                          site=vendor_site.site,
-                         total_vouchers=total_vouchers,
+                         total_vouchers_generated=total_vouchers_generated,
+                         total_vouchers_sold=total_vouchers_sold,
                          total_revenue=total_revenue,
                          total_groups=total_groups,
                          avg_per_day=avg_per_day,
@@ -1109,39 +1111,49 @@ def vendor_sales_reports():
             VoucherGroup.created_at <= end_dt
         ).all()
         
-        # Calculate totals
-        total_vouchers = sum(vg.quantity for vg in voucher_groups)
-        total_revenue = sum(vg.total_value for vg in voucher_groups)
+        # Calculate totals based on actual sales (expired + used vouchers)
+        total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
+        total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) for vg in voucher_groups)
+        total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0)) * vg.plan.price for vg in voucher_groups)
         
-        # Group by plan
+        # Group by plan - only count sold vouchers
         plan_stats = {}
         for vg in voucher_groups:
             plan_name = vg.plan.name
+            sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
+            
             if plan_name not in plan_stats:
                 plan_stats[plan_name] = {
-                    'quantity': 0,
+                    'quantity_generated': 0,
+                    'quantity_sold': 0,
                     'revenue': 0,
                     'plan_price': vg.plan.price
                 }
-            plan_stats[plan_name]['quantity'] += vg.quantity
-            plan_stats[plan_name]['revenue'] += vg.total_value
+            plan_stats[plan_name]['quantity_generated'] += vg.quantity
+            plan_stats[plan_name]['quantity_sold'] += sold_vouchers
+            plan_stats[plan_name]['revenue'] += sold_vouchers * vg.plan.price
         
-        # Group by date
+        # Group by date - only count sold vouchers
         date_stats = {}
         for vg in voucher_groups:
             date_key = vg.created_at.strftime('%Y-%m-%d')
+            sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
+            
             if date_key not in date_stats:
                 date_stats[date_key] = {
-                    'quantity': 0,
+                    'quantity_generated': 0,
+                    'quantity_sold': 0,
                     'revenue': 0
                 }
-            date_stats[date_key]['quantity'] += vg.quantity
-            date_stats[date_key]['revenue'] += vg.total_value
+            date_stats[date_key]['quantity_generated'] += vg.quantity
+            date_stats[date_key]['quantity_sold'] += sold_vouchers
+            date_stats[date_key]['revenue'] += sold_vouchers * vg.plan.price
         
         return render_template('vendor/sales_reports.html',
                              site=vendor_site.site,
                              voucher_groups=voucher_groups,
-                             total_vouchers=total_vouchers,
+                             total_vouchers_generated=total_vouchers_generated,
+                             total_vouchers_sold=total_vouchers_sold,
                              total_revenue=total_revenue,
                              plan_stats=plan_stats,
                              date_stats=date_stats,

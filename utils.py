@@ -147,7 +147,7 @@ def format_duration(duration: int, unit: str) -> str:
     return f"{duration} {unit}"
 
 def generate_sales_report_data(site_id: int, start_date: datetime = None, end_date: datetime = None) -> Dict:
-    """Generate sales report data for a specific site"""
+    """Generate sales report data for a specific site based on actual voucher usage"""
     from models import VoucherGroup, VoucherPlan
     
     query = VoucherGroup.query.filter_by(site_id=site_id)
@@ -159,36 +159,49 @@ def generate_sales_report_data(site_id: int, start_date: datetime = None, end_da
     
     voucher_groups = query.all()
     
-    total_vouchers = sum(vg.quantity for vg in voucher_groups)
-    total_revenue = sum(vg.total_value for vg in voucher_groups)
+    # Calculate totals based on actually sold vouchers (expired + used)
+    total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
+    total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) for vg in voucher_groups)
+    total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0)) * vg.plan.price for vg in voucher_groups)
     
-    # Group by plan
+    # Group by plan - only count sold vouchers
     plan_sales = {}
     for vg in voucher_groups:
         plan_name = vg.plan.name
+        sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
+        
         if plan_name not in plan_sales:
             plan_sales[plan_name] = {
-                'quantity': 0,
+                'quantity_generated': 0,
+                'quantity_sold': 0,
                 'revenue': 0,
                 'plan_price': vg.plan.price
             }
-        plan_sales[plan_name]['quantity'] += vg.quantity
-        plan_sales[plan_name]['revenue'] += vg.total_value
+        
+        plan_sales[plan_name]['quantity_generated'] += vg.quantity
+        plan_sales[plan_name]['quantity_sold'] += sold_vouchers
+        plan_sales[plan_name]['revenue'] += sold_vouchers * vg.plan.price
     
-    # Group by vendor
+    # Group by vendor - only count sold vouchers
     vendor_sales = {}
     for vg in voucher_groups:
         vendor_name = vg.created_by.username
+        sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
+        
         if vendor_name not in vendor_sales:
             vendor_sales[vendor_name] = {
-                'quantity': 0,
+                'quantity_generated': 0,
+                'quantity_sold': 0,
                 'revenue': 0
             }
-        vendor_sales[vendor_name]['quantity'] += vg.quantity
-        vendor_sales[vendor_name]['revenue'] += vg.total_value
+        
+        vendor_sales[vendor_name]['quantity_generated'] += vg.quantity
+        vendor_sales[vendor_name]['quantity_sold'] += sold_vouchers
+        vendor_sales[vendor_name]['revenue'] += sold_vouchers * vg.plan.price
     
     return {
-        'total_vouchers': total_vouchers,
+        'total_vouchers_generated': total_vouchers_generated,
+        'total_vouchers_sold': total_vouchers_sold,
         'total_revenue': total_revenue,
         'plan_sales': plan_sales,
         'vendor_sales': vendor_sales,

@@ -10,6 +10,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (July 2025)
 
+### Revenue Calculation Bug Fix (July 10, 2025)
+- **Critical Problem**: Application was calculating revenue based on total vouchers generated instead of vouchers actually sold/used
+- **Impact**: Revenue reports showed inflated values (e.g., showing R$ 100 when only 1 of 10 vouchers was used)
+- **Root Cause**: System was using total quantity multiplied by price instead of tracking actual usage from Omada Controller
+- **Solution Implemented**:
+  - Updated all revenue calculations to use only sold vouchers (expired_count + used_count)
+  - Modified generate_sales_report_data() to calculate based on actual sales
+  - Updated voucher history and sales report templates to show both generated and sold quantities
+  - Added conversion rate tracking (sold/generated percentage)
+  - Enhanced Omada API integration to properly sync voucher status counts
+  - Updated templates to clearly distinguish between "Vouchers Gerados" and "Vouchers Vendidos"
+  - Added detailed status display showing unused, used, in-use, and expired counts
+
 ### Voucher Status Management System
 - **Problem Identified**: Vouchers were incorrectly marked as "sold" when generated, not when actually used
 - **Solution Implemented**: 

@@ -50,23 +50,44 @@
 
 <!-- Summary Cards -->
 <div class="row mb-4">
-    <div class="col-md-6">
+    <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <i class="fas fa-ticket-alt fa-3x text-primary mb-3"></i>
-                <h2 class="text-primary">{{ total_vouchers }}</h2>
-                <p class="text-muted mb-0">Vouchers Vendidos</p>
+                <i class="fas fa-ticket-alt fa-2x text-primary mb-2"></i>
+                <h4 class="text-primary">{{ total_vouchers_generated }}</h4>
+                <p class="text-muted mb-0">Vouchers Gerados</p>
                 <small class="text-muted">{{ start_date }} a {{ end_date }}</small>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <i class="fas fa-dollar-sign fa-3x text-success mb-3"></i>
-                <h2 class="text-success">R$ {{ total_revenue|currency }}</h2>
-                <p class="text-muted mb-0">Receita Total</p>
-                <small class="text-muted">{{ start_date }} a {{ end_date }}</small>
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h4 class="text-success">{{ total_vouchers_sold }}</h4>
+                <p class="text-muted mb-0">Vouchers Vendidos</p>
+                <small class="text-muted">Expirados + Usados</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-dollar-sign fa-2x text-success mb-2"></i>
+                <h4 class="text-success">R$ {{ total_revenue|currency }}</h4>
+                <p class="text-muted mb-0">Receita Efetiva</p>
+                <small class="text-muted">Baseada em vendas reais</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-percentage fa-2x text-info mb-2"></i>
+                {% set conversion_rate = (total_vouchers_sold / total_vouchers_generated * 100) if total_vouchers_generated > 0 else 0 %}
+                <h4 class="text-info">{{ conversion_rate|round(1) }}%</h4>
+                <p class="text-muted mb-0">Taxa de Conversão</p>
+                <small class="text-muted">Vendidos / Gerados</small>
             </div>
         </div>
     </div>
@@ -110,7 +131,7 @@
                             <thead>
                                 <tr>
                                     <th>Plano</th>
-                                    <th>Quantidade</th>
+                                    <th>Gerados/Vendidos</th>
                                     <th>Receita</th>
                                     <th>Preço Unit.</th>
                                 </tr>
@@ -119,7 +140,14 @@
                                 {% for plan_name, stats in plan_stats.items() %}
                                 <tr>
                                     <td>{{ plan_name }}</td>
-                                    <td><span class="badge bg-primary">{{ stats.quantity }}</span></td>
+                                    <td>
+                                        <div>
+                                            <span class="badge bg-primary">{{ stats.quantity_generated }}</span> gerados
+                                        </div>
+                                        <div class="mt-1">
+                                            <span class="badge bg-success">{{ stats.quantity_sold }}</span> vendidos
+                                        </div>
+                                    </td>
                                     <td><strong>R$ {{ stats.revenue|currency }}</strong></td>
                                     <td>R$ {{ stats.plan_price|currency }}</td>
                                 </tr>
@@ -157,7 +185,14 @@
                                 {% for date, stats in date_stats.items()|sort(reverse=True) %}
                                 <tr>
                                     <td>{{ date }}</td>
-                                    <td><span class="badge bg-info">{{ stats.quantity }}</span></td>
+                                    <td>
+                                        <div>
+                                            <span class="badge bg-primary">{{ stats.quantity_generated }}</span> gerados
+                                        </div>
+                                        <div class="mt-1">
+                                            <span class="badge bg-success">{{ stats.quantity_sold }}</span> vendidos
+                                        </div>
+                                    </td>
                                     <td>R$ {{ stats.revenue|currency }}</td>
                                 </tr>
                                 {% endfor %}
