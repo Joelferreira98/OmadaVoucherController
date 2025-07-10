@@ -20,6 +20,9 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Planos de Voucher</h5>
+            </div>
             <div class="card-body">
                 {% if plans %}
                     <div class="table-responsive">
@@ -31,16 +34,14 @@
                                     <th>Preço</th>
                                     <th>Franquia</th>
                                     <th>Velocidade</th>
+                                    <th>Vouchers</th>
+                                    <th>Receita</th>
                                     <th>Status</th>
-                                    <th>Vouchers Vendidos</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for plan_data in plans %}
-                                {% set plan = plan_data[0] %}
-                                {% set total_vouchers = plan_data[1] or 0 %}
-                                {% set total_revenue = plan_data[2] or 0 %}
+                                {% for plan in plans %}
                                 <tr>
                                     <td>{{ plan.name }}</td>
                                     <td>{{ plan.duration|duration(plan.duration_unit) }}</td>
@@ -53,36 +54,33 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if plan.download_speed or plan.upload_speed %}
-                                            ↓{{ plan.download_speed or 0 }} / ↑{{ plan.upload_speed or 0 }} Mbps
+                                        {% if plan.download_speed %}
+                                            {{ plan.download_speed }}/{{ plan.upload_speed or 0 }} Mbps
                                         {% else %}
-                                            Não limitado
+                                            Ilimitado
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if plan.is_active %}
-                                            <span class="badge bg-success">Ativo</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">Inativo</span>
-                                        {% endif %}
+                                        <span class="badge bg-info">{{ plan.total_vouchers or 0 }}</span>
                                     </td>
-                                    <td>{{ total_vouchers }}</td>
+                                    <td>R$ {{ plan.total_revenue|currency }}</td>
                                     <td>
-                                        <a href="{{ url_for('edit_plan', plan_id=plan.id) }}" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-edit me-1"></i>Editar
-                                        </a>
-                                        {% if plan.is_active %}
-                                            <button class="btn btn-sm btn-outline-warning" 
-                                                    onclick="togglePlanStatus({{ plan.id }}, false)">
-                                                <i class="fas fa-ban me-1"></i>Desativar
+                                        <span class="badge bg-{{ 'success' if plan.is_active else 'secondary' }}">
+                                            {{ 'Ativo' if plan.is_active else 'Inativo' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('edit_plan', plan_id=plan.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-{{ 'danger' if plan.is_active else 'success' }}"
+                                                    onclick="togglePlanStatus({{ plan.id }}, {{ 'false' if plan.is_active else 'true' }})">
+                                                <i class="fas fa-{{ 'pause' if plan.is_active else 'play' }}"></i>
                                             </button>
-                                        {% else %}
-                                            <button class="btn btn-sm btn-outline-success" 
-                                                    onclick="togglePlanStatus({{ plan.id }}, true)">
-                                                <i class="fas fa-check me-1"></i>Ativar
-                                            </button>
-                                        {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -137,4 +135,4 @@ function togglePlanStatus(planId, status) {
     }
 }
 </script>
-{% endblock %>
+{% endblock %}
