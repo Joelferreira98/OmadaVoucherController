@@ -124,6 +124,7 @@ function formatDate(date) {
 
 // Show loading spinner
 function showLoading(element) {
+    if (!element) return;
     element.innerHTML = `
         <div class="text-center">
             <div class="spinner-border" role="status">
@@ -135,6 +136,7 @@ function showLoading(element) {
 
 // Show error message
 function showError(element, message) {
+    if (!element) return;
     element.innerHTML = `
         <div class="alert alert-danger" role="alert">
             <i class="fas fa-exclamation-triangle me-2"></i>

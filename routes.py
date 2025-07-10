@@ -860,14 +860,13 @@ def generate_vouchers():
             elif plan.duration_unit == 'days':
                 duration_in_minutes = plan.duration * 24 * 60
             
-            # Prepare voucher data for Omada API
+            # Prepare voucher data for Omada API following exact specification
             voucher_data = {
                 "name": f"{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 "amount": form.quantity.data,
                 "codeLength": code_length,
                 "codeForm": code_form,
                 "limitType": limit_type,
-                "limitNum": limit_num,
                 "durationType": 0,  # Client duration
                 "duration": duration_in_minutes,
                 "timingType": 0,  # Timing by time
@@ -881,17 +880,24 @@ def generate_vouchers():
                     }
                 },
                 "trafficLimitEnable": bool(plan.data_quota),
-                "trafficLimit": plan.data_quota or 0,
-                "trafficLimitFrequency": 0,  # Total
-                "unitPrice": int(plan.price * 100),  # Convert to cents
-                "currency": "BRL",
                 "applyToAllPortals": True,
-                "portals": [],
                 "logout": True,
                 "description": description or f"Vouchers gerados por {current_user.username}",
                 "printComments": f"Plano: {plan.name}",
                 "validityType": 0  # Can be used at any time
             }
+            
+            # Add optional fields only if they have values
+            if limit_type != 2 and limit_num:
+                voucher_data["limitNum"] = limit_num
+            
+            if plan.data_quota:
+                voucher_data["trafficLimit"] = plan.data_quota
+                voucher_data["trafficLimitFrequency"] = 0  # Total
+            
+            if plan.price and plan.price > 0:
+                voucher_data["unitPrice"] = int(plan.price * 100)  # Convert to cents
+                voucher_data["currency"] = "BRL"
             
             # Create voucher group in Omada Controller
             from omada_api import OmadaAPI

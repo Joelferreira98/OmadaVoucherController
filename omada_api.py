@@ -230,16 +230,42 @@ class OmadaAPI:
         }
         
         try:
+            logging.debug(f"Making POST request to: {url}")
+            logging.debug(f"Request headers: {headers}")
+            logging.debug(f"Request payload: {voucher_data}")
+            
             response = self.session.post(url, headers=headers, json=voucher_data)
+            
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response headers: {response.headers}")
+            logging.debug(f"Response text: {response.text}")
+            
             response.raise_for_status()
             
             result = response.json()
             logging.info(f"Voucher group creation response: {result}")
             
+            # Check for specific API errors
+            if result.get('errorCode') != 0:
+                error_code = result.get('errorCode')
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Omada API returned error {error_code}: {error_msg}")
+                
+                # Handle specific error codes
+                if error_code == -42059:
+                    logging.error("Duplicated voucher group name error")
+                elif error_code == -42036:
+                    logging.error("Portal selection error")
+                elif error_code == -33000:
+                    logging.error("Site does not exist")
+                elif error_code == -42010:
+                    logging.error("Voucher limit reached")
+            
             return result
                 
         except Exception as e:
             logging.error(f"Error creating voucher group: {str(e)}")
+            logging.error(f"Exception type: {type(e)}")
             return None
     
     def get_voucher_summary(self, site_id: str, start_date: str = None, end_date: str = None) -> Optional[Dict]:
