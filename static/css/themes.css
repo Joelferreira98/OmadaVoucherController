@@ -182,6 +182,52 @@ main {
     color: var(--text-secondary) !important;
 }
 
+/* Specific table cell content fixes */
+.table td .fw-bold,
+.table td .fw-bold.text-dark {
+    color: var(--text-primary) !important;
+}
+
+.table td .text-muted,
+.table td .small.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.table td div,
+.table td span {
+    color: inherit !important;
+}
+
+/* Light theme table specific fixes */
+[data-theme="light"] .table td .fw-bold,
+[data-theme="light"] .table td .fw-bold.text-dark {
+    color: #212529 !important;
+}
+
+[data-theme="light"] .table td .text-muted,
+[data-theme="light"] .table td .small.text-muted {
+    color: #6c757d !important;
+}
+
+[data-theme="light"] .table td .small {
+    color: #495057 !important;
+}
+
+/* Dark theme table specific fixes */
+[data-theme="dark"] .table td .fw-bold,
+[data-theme="dark"] .table td .fw-bold.text-dark {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .table td .text-muted,
+[data-theme="dark"] .table td .small.text-muted {
+    color: #adb5bd !important;
+}
+
+[data-theme="dark"] .table td .small {
+    color: #dee2e6 !important;
+}
+
 /* Forms */
 .form-control,
 .form-select {
@@ -429,6 +475,47 @@ p, span, div {
 
 .small {
     color: var(--text-secondary) !important;
+}
+
+/* Additional table content specificity */
+table .fw-bold,
+table .fw-bold.text-dark,
+tbody .fw-bold,
+tbody .fw-bold.text-dark {
+    color: var(--text-primary) !important;
+}
+
+table .text-muted,
+table .small.text-muted,
+tbody .text-muted,
+tbody .small.text-muted {
+    color: var(--text-muted) !important;
+}
+
+table .small,
+tbody .small {
+    color: var(--text-secondary) !important;
+}
+
+/* Ultimate fallback for table text */
+[data-theme="light"] table,
+[data-theme="light"] tbody,
+[data-theme="light"] td {
+    color: #212529 !important;
+}
+
+[data-theme="light"] table .text-muted {
+    color: #6c757d !important;
+}
+
+[data-theme="dark"] table,
+[data-theme="dark"] tbody,
+[data-theme="dark"] td {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] table .text-muted {
+    color: #adb5bd !important;
 }
 
 /* Mobile Optimizations */
