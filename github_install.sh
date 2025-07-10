@@ -2,14 +2,14 @@
 
 # Script de instalação via GitHub
 # Execute este comando na sua VPS:
-# curl -fsSL https://raw.githubusercontent.com/seu-usuario/voucher-system/main/github_install.sh | bash
+# curl -fsSL https://raw.githubusercontent.com/Joelferreira98/OmadaVoucherController/main/github_install.sh | bash
 
 set -e
 
 # Configuração
-REPO_URL="https://github.com/joel-0/voucher-system"
-INSTALL_DIR="/tmp/voucher-system"
-APP_NAME="voucher-system"
+REPO_URL="https://github.com/Joelferreira98/OmadaVoucherController"
+INSTALL_DIR="/tmp/OmadaVoucherController"
+APP_NAME="OmadaVoucherController"
 
 # Cores para output
 RED='\033[0;31m'

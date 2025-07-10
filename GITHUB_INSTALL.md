@@ -7,14 +7,14 @@ Esta é a maneira mais simples de instalar o sistema de vouchers na sua VPS.
 Execute este comando na sua VPS como root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/joel-0/voucher-system/main/quick_install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Joelferreira98/OmadaVoucherController/main/quick_install.sh | sudo bash
 ```
 
 ## Método 2: Instalação Manual
 
 ```bash
 # 1. Baixar o script
-curl -fsSL https://raw.githubusercontent.com/joel-0/voucher-system/main/github_install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/Joelferreira98/OmadaVoucherController/main/github_install.sh -o install.sh
 
 # 2. Dar permissão
 chmod +x install.sh
@@ -162,7 +162,7 @@ sudo supervisorctl stop voucher-app
 
 # Baixar nova versão
 cd /tmp
-git clone https://github.com/joel-0/voucher-system voucher-update
+git clone https://github.com/Joelferreira98/OmadaVoucherController voucher-update
 sudo cp -r voucher-update/* /opt/voucher-app/
 sudo chown -R voucher:voucher /opt/voucher-app/
 

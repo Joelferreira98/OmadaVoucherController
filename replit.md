@@ -172,7 +172,7 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Database Support**: GitHub installer supports MySQL local, MySQL remote, and PostgreSQL remote
 - **Production Ready**: Includes nginx, supervisor, firewall, and SSL configuration
 - **Simple Commands**: 
-  - Quick: `curl -fsSL https://raw.githubusercontent.com/joel-0/voucher-system/main/quick_install.sh | sudo bash`
+  - Quick: `curl -fsSL https://raw.githubusercontent.com/Joelferreira98/OmadaVoucherController/main/quick_install.sh | sudo bash`
   - Manual: Download github_install.sh and execute
 
 ## System Architecture
