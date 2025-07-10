@@ -1,0 +1,30 @@
+# Alternativa ao Supervisor - Serviço systemd
+# Arquivo: /etc/systemd/system/voucher-app.service
+
+[Unit]
+Description=Voucher Management System
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=exec
+User=voucher
+Group=voucher
+WorkingDirectory=/opt/voucher-app
+Environment=PATH=/opt/voucher-app/venv/bin
+ExecStart=/opt/voucher-app/venv/bin/gunicorn --config /opt/voucher-app/gunicorn.conf.py main:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+# Comandos para usar:
+# sudo systemctl daemon-reload
+# sudo systemctl enable voucher-app
+# sudo systemctl start voucher-app
+# sudo systemctl status voucher-app
+# sudo journalctl -u voucher-app -f

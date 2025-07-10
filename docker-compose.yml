@@ -1,0 +1,57 @@
+# Alternativa Docker - docker-compose.yml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: voucher_db
+      POSTGRES_USER: voucher
+      POSTGRES_PASSWORD: voucher_password_123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - SESSION_SECRET=sua_chave_secreta_muito_forte_aqui_123456789
+      - DATABASE_URL=postgresql://voucher:voucher_password_123@db:5432/voucher_db
+      - OMADA_CONTROLLER_URL=https://seu-omada-controller.com:8043
+      - OMADA_CLIENT_ID=seu_client_id
+      - OMADA_CLIENT_SECRET=seu_client_secret
+      - OMADA_OMADAC_ID=seu_omadac_id
+    depends_on:
+      - db
+    volumes:
+      - ./static:/app/static
+      - ./templates:/app/templates
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+      - ./static:/var/www/static
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+# Arquivo Dockerfile necessário:
+# FROM python:3.11-slim
+# WORKDIR /app
+# COPY requirements.txt .
+# RUN pip install -r requirements.txt
+# COPY . .
+# CMD ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
