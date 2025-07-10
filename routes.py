@@ -527,16 +527,18 @@ def manage_plans():
         flash('Site não encontrado.', 'error')
         return redirect(url_for('admin_site_selection'))
     
-    # Get plans for current site with statistics
-    plans = db.session.query(
-        VoucherPlan,
-        db.func.sum(VoucherGroup.quantity).label('total_vouchers'),
-        db.func.sum(VoucherGroup.total_value).label('total_revenue')
-    ).outerjoin(VoucherGroup, VoucherPlan.id == VoucherGroup.plan_id)\
-     .filter(VoucherPlan.site_id == current_site_id)\
-     .group_by(VoucherPlan.id)\
-     .order_by(VoucherPlan.created_at.desc())\
-     .all()
+    # Get plans for current site
+    plans = VoucherPlan.query.filter_by(site_id=current_site_id).order_by(VoucherPlan.created_at.desc()).all()
+    
+    # Add statistics to each plan
+    for plan in plans:
+        plan.total_vouchers = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
+            VoucherGroup.plan_id == plan.id
+        ).scalar() or 0
+        
+        plan.total_revenue = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
+            VoucherGroup.plan_id == plan.id
+        ).scalar() or 0
     
     return render_template('admin/manage_plans.html', 
                          plans=plans, 

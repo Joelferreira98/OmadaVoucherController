@@ -115,7 +115,9 @@ def generate_voucher_pdf(voucher_group, voucher_codes: List[str]) -> bytes:
 
 def format_currency(value: float) -> str:
     """Format currency in Brazilian Real"""
-    return f"R$ {value:.2f}".replace('.', ',')
+    if value is None:
+        value = 0
+    return f"{value:.2f}".replace('.', ',')
 
 def format_duration(duration: int, unit: str) -> str:
     """Format duration with proper unit"""
