@@ -101,36 +101,50 @@ def generate_small_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, 
     # Check if we have real codes or placeholder codes
     has_real_codes = voucher_codes and not any('OMADA-' in str(code) for code in voucher_codes)
     
-    # Generate one voucher per page (ticket format)
+    # Generate responsive vouchers for thermal printer (50x80mm)
     story = []
     for i, code in enumerate(voucher_codes):
         if i > 0:
             story.append(PageBreak())
         
-        # Site name
-        story.append(Paragraph(f"{voucher_group.site.name}", site_style))
+        # Create compact ticket content
+        ticket_lines = []
         
-        # Divider
-        story.append(Paragraph("- - - - - - - - - - - - - - -", info_style))
-        story.append(Spacer(1, 2*mm))
+        # Site name
+        ticket_lines.append(f"<b>{voucher_group.site.name}</b>")
+        ticket_lines.append("- - - - - - - - - - - -")
         
         # Voucher code
         if has_real_codes:
-            story.append(Paragraph(f"{code}", code_style))
+            ticket_lines.append(f"<font name='Courier-Bold' size='14'>{code}</font>")
         else:
-            story.append(Paragraph("VER OMADA CONTROLLER", code_style))
-            story.append(Paragraph(f"ID: {voucher_group.omada_group_id}", info_style))
+            ticket_lines.append("<font name='Courier-Bold' size='10'>VER OMADA</font>")
+            ticket_lines.append(f"<font size='6'>ID: {voucher_group.omada_group_id[:10]}...</font>")
         
         # Plan name
-        story.append(Paragraph(f"{voucher_group.plan.name}", plan_style))
+        ticket_lines.append(f"<b>{voucher_group.plan.name}</b>")
         
         # Price
-        story.append(Spacer(1, 1*mm))
-        story.append(Paragraph(f"{format_currency(voucher_group.plan.price)}", price_style))
+        ticket_lines.append(f"<font size='12'><b>{format_currency(voucher_group.plan.price)}</b></font>")
         
-        # Cut line at bottom
-        story.append(Spacer(1, 3*mm))
-        story.append(Paragraph("✂ - - - - - - - - - - - - - - - ✂", info_style))
+        # Cut line
+        ticket_lines.append("✂ - - - - - - - - - - - - ✂")
+        
+        # Create single compact paragraph
+        ticket_content = "<br/>".join(ticket_lines)
+        
+        # Responsive paragraph style that adjusts to content
+        compact_style = ParagraphStyle(
+            'CompactThermal',
+            parent=styles['Normal'],
+            fontSize=7,
+            alignment=TA_CENTER,
+            textColor=colors.black,
+            leading=8,
+            spaceAfter=1*mm
+        )
+        
+        story.append(Paragraph(ticket_content, compact_style))
     
     doc.build(story)
     buffer.seek(0)
@@ -221,44 +235,47 @@ def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffe
     # Check if we have real codes or placeholder codes
     has_real_codes = voucher_codes and not any('OMADA-' in str(code) for code in voucher_codes)
     
-    # Create tickets in grid format (2x3 = 6 tickets per page)
+    # Create tickets in responsive grid format (3x4 = 12 tickets per page)
     story = []
-    tickets_per_page = 6
-    tickets_per_row = 2
+    tickets_per_row = 3
+    rows_per_page = 4
     
     # Create table data for tickets
     table_data = []
     current_row = []
     
     for i, code in enumerate(voucher_codes):
-        # Create ticket content
-        ticket_content = []
+        # Create compact ticket content
+        ticket_lines = []
         
         # Site name
-        ticket_content.append(Paragraph(f"{voucher_group.site.name}", site_style))
+        ticket_lines.append(f"<b>{voucher_group.site.name}</b>")
+        ticket_lines.append("- - - - - - - - - -")
         
         # Voucher code
         if has_real_codes:
-            ticket_content.append(Paragraph(f"{code}", code_style))
+            ticket_lines.append(f"<font name='Courier-Bold' size='12'>{code}</font>")
         else:
-            ticket_content.append(Paragraph("VER OMADA CONTROLLER", code_style))
-            ticket_content.append(Paragraph(f"ID: {voucher_group.omada_group_id}", info_style))
+            ticket_lines.append("<font name='Courier-Bold' size='10'>VER OMADA</font>")
+            ticket_lines.append(f"<font size='6'>ID: {voucher_group.omada_group_id[:8]}...</font>")
         
-        # Plan name
-        ticket_content.append(Paragraph(f"{voucher_group.plan.name}", plan_style))
+        # Plan name and price on same line
+        ticket_lines.append(f"<b>{voucher_group.plan.name}</b>")
+        ticket_lines.append(f"<font size='11'><b>{format_currency(voucher_group.plan.price)}</b></font>")
+        ticket_lines.append("✂ - - - - - - - - - ✂")
         
-        # Price
-        ticket_content.append(Paragraph(f"{format_currency(voucher_group.plan.price)}", price_style))
+        # Join all content into a single paragraph
+        ticket_content = "<br/>".join(ticket_lines)
+        ticket_paragraph = Paragraph(ticket_content, ParagraphStyle(
+            'CompactTicket',
+            parent=styles['Normal'],
+            fontSize=8,
+            alignment=TA_CENTER,
+            textColor=colors.black,
+            leading=10
+        ))
         
-        # Cut line
-        ticket_content.append(Paragraph("✂ - - - - - - - - - - - - - - - ✂", cut_style))
-        
-        # Join all content
-        ticket_cell = []
-        for content in ticket_content:
-            ticket_cell.append(content)
-        
-        current_row.append(ticket_cell)
+        current_row.append(ticket_paragraph)
         
         # If row is complete or it's the last voucher, add to table
         if len(current_row) == tickets_per_row or i == len(voucher_codes) - 1:
@@ -270,20 +287,27 @@ def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffe
             current_row = []
             
             # If we have enough rows for a page, create the table
-            if len(table_data) == 3 or i == len(voucher_codes) - 1:
-                # Create table with tickets
-                table = Table(table_data, colWidths=[3*inch, 3*inch], rowHeights=[2.5*inch] * len(table_data))
+            if len(table_data) == rows_per_page or i == len(voucher_codes) - 1:
+                # Calculate responsive dimensions
+                available_width = 7.5 * inch  # A4 width minus margins
+                available_height = 10 * inch  # A4 height minus margins
+                
+                col_width = available_width / tickets_per_row
+                row_height = available_height / len(table_data)
+                
+                # Create table with responsive tickets
+                table = Table(table_data, 
+                            colWidths=[col_width] * tickets_per_row, 
+                            rowHeights=[row_height] * len(table_data))
                 table.setStyle(TableStyle([
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('GRID', (0, 0), (-1, -1), 1, colors.black),
                     ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
-                    ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white]),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 3),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-                    ('TOPPADDING', (0, 0), (-1, -1), 3),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                 ]))
                 
                 story.append(table)
