@@ -45,7 +45,7 @@
                     <!-- Quantity -->
                     <div class="mb-3">
                         <label class="form-label">{{ form.quantity.label.text }}</label>
-                        {{ form.quantity(class="form-control", id="quantityInput", onchange="calculateTotal()", min="1", max="1000") }}
+                        {{ form.quantity(class="form-control", id="quantityInput", onchange="calculateTotal()", oninput="calculateTotal()", min="1", max="1000", value="1") }}
                         {% if form.quantity.errors %}
                             <div class="text-danger small">{{ form.quantity.errors[0] }}</div>
                         {% endif %}
@@ -234,14 +234,11 @@ function calculateTotal() {
     
     // Check if all elements exist
     if (!planSelect || !quantityInput || !totalVouchers || !totalValue || !generateBtn) {
-        console.log('Missing elements in calculateTotal');
         return;
     }
     
     const quantity = parseInt(quantityInput.value) || 0;
     const planId = planSelect.value;
-    
-    console.log('calculateTotal - planId:', planId, 'quantity:', quantity, 'plansData:', plansData);
     
     if (planId && plansData[planId] && quantity > 0) {
         const plan = plansData[planId];
@@ -250,12 +247,10 @@ function calculateTotal() {
         totalVouchers.textContent = quantity;
         totalValue.textContent = total.toFixed(2).replace('.', ',');
         generateBtn.disabled = false;
-        console.log('Button enabled - planId:', planId, 'quantity:', quantity);
     } else {
         totalVouchers.textContent = '0';
         totalValue.textContent = '0,00';
         generateBtn.disabled = true;
-        console.log('Button disabled - planId:', planId, 'quantity:', quantity);
     }
 }
 
@@ -300,9 +295,12 @@ function resetButtonState() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    resetButtonState();
-    updatePlanInfo();
-    calculateTotal();
+    // Add small delay to ensure all elements are loaded
+    setTimeout(function() {
+        resetButtonState();
+        updatePlanInfo();
+        calculateTotal();
+    }, 100);
 });
 
 // Reset button when page becomes visible (back navigation)
