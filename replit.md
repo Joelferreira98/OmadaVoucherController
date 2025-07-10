@@ -102,6 +102,26 @@ Preferred communication style: Simple, everyday language.
   - Precise audit trail for financial reporting
   - Enhanced CSV export with individual voucher details
 
+### Admin Voucher Deletion System (July 10, 2025)
+- **Feature**: Complete voucher deletion system for administrators
+- **Implementation**:
+  - Added delete_voucher() and delete_voucher_groups() functions to Omada API
+  - Individual voucher deletion by voucher ID from Omada Controller
+  - Bulk voucher group deletion with checkbox selection interface
+  - Form-based selection with "Select All" functionality
+  - Confirmation dialogs to prevent accidental deletions
+  - Database synchronization - groups removed from local DB after successful Omada deletion
+- **Admin Interface Location**:
+  - Access: Admin Dashboard → Histórico de Vouchers
+  - Individual deletion: Available per voucher (future implementation)
+  - Bulk deletion: Checkbox selection + "Excluir Selecionados" button in voucher history
+  - Safety: Confirmation dialog before deletion, only affects Omada Controller and local database
+
+### UI Visibility Improvements (July 10, 2025)
+- **Problem**: Form fields had white text on white background making them invisible
+- **Solution**: Switched from dark Bootstrap theme to standard Bootstrap for better form visibility
+- **Login Page Cleanup**: Removed default test credentials display for production use
+
 ## System Architecture
 
 ### Backend Architecture
