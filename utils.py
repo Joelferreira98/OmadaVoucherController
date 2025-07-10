@@ -235,10 +235,10 @@ def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffe
     # Check if we have real codes or placeholder codes
     has_real_codes = voucher_codes and not any('OMADA-' in str(code) for code in voucher_codes)
     
-    # Create tickets in responsive grid format (3x4 = 12 tickets per page)
+    # Create tickets in responsive grid format (4x6 = 24 tickets per page)
     story = []
-    tickets_per_row = 3
-    rows_per_page = 4
+    tickets_per_row = 4
+    rows_per_page = 6
     
     # Create table data for tickets
     table_data = []
@@ -254,25 +254,25 @@ def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffe
         
         # Voucher code
         if has_real_codes:
-            ticket_lines.append(f"<font name='Courier-Bold' size='12'>{code}</font>")
+            ticket_lines.append(f"<font name='Courier-Bold' size='10'>{code}</font>")
         else:
-            ticket_lines.append("<font name='Courier-Bold' size='10'>VER OMADA</font>")
-            ticket_lines.append(f"<font size='6'>ID: {voucher_group.omada_group_id[:8]}...</font>")
+            ticket_lines.append("<font name='Courier-Bold' size='8'>VER OMADA</font>")
+            ticket_lines.append(f"<font size='5'>ID: {voucher_group.omada_group_id[:6]}...</font>")
         
-        # Plan name and price on same line
+        # Plan name and price
         ticket_lines.append(f"<b>{voucher_group.plan.name}</b>")
-        ticket_lines.append(f"<font size='11'><b>{format_currency(voucher_group.plan.price)}</b></font>")
-        ticket_lines.append("✂ - - - - - - - - - ✂")
+        ticket_lines.append(f"<font size='9'><b>{format_currency(voucher_group.plan.price)}</b></font>")
+        ticket_lines.append("✂ - - - - - - ✂")
         
         # Join all content into a single paragraph
         ticket_content = "<br/>".join(ticket_lines)
         ticket_paragraph = Paragraph(ticket_content, ParagraphStyle(
             'CompactTicket',
             parent=styles['Normal'],
-            fontSize=8,
+            fontSize=7,
             alignment=TA_CENTER,
             textColor=colors.black,
-            leading=10
+            leading=8
         ))
         
         current_row.append(ticket_paragraph)
