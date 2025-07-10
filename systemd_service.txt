@@ -3,8 +3,8 @@
 
 [Unit]
 Description=Voucher Management System
-After=network.target postgresql.service
-Requires=postgresql.service
+After=network.target mysql.service
+Requires=mysql.service
 
 [Service]
 Type=exec

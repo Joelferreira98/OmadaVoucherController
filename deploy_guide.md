@@ -75,18 +75,23 @@ sudo apt update && sudo apt upgrade -y
 
 ### 2. Instalar dependências
 ```bash
-sudo apt install -y python3 python3-pip python3-venv nginx postgresql postgresql-contrib supervisor git curl
+sudo apt install -y python3 python3-pip python3-venv nginx mysql-server supervisor git curl
 ```
 
-### 3. Configurar PostgreSQL
+### 3. Configurar MySQL
 ```bash
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
+sudo systemctl start mysql
+sudo systemctl enable mysql
+
+# Configurar MySQL
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root_password_123';"
+sudo mysql -u root -proot_password_123 -e "FLUSH PRIVILEGES;"
 
 # Criar usuário e banco
-sudo -u postgres psql -c "CREATE USER voucher WITH PASSWORD 'voucher_password_123';"
-sudo -u postgres psql -c "CREATE DATABASE voucher_db OWNER voucher;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE voucher_db TO voucher;"
+sudo mysql -u root -proot_password_123 -e "CREATE DATABASE voucher_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -u root -proot_password_123 -e "CREATE USER 'voucher'@'localhost' IDENTIFIED BY 'voucher_password_123';"
+sudo mysql -u root -proot_password_123 -e "GRANT ALL PRIVILEGES ON voucher_db.* TO 'voucher'@'localhost';"
+sudo mysql -u root -proot_password_123 -e "FLUSH PRIVILEGES;"
 ```
 
 ### 4. Configurar aplicação
@@ -106,7 +111,7 @@ sudo -u voucher python3 -m venv venv
 sudo -u voucher ./venv/bin/pip install --upgrade pip
 
 # Instalar dependências
-sudo -u voucher ./venv/bin/pip install Flask Flask-SQLAlchemy Flask-Login Flask-WTF WTForms email-validator Werkzeug gunicorn psycopg2-binary SQLAlchemy reportlab requests PyJWT oauthlib
+sudo -u voucher ./venv/bin/pip install Flask Flask-SQLAlchemy Flask-Login Flask-WTF WTForms email-validator Werkzeug gunicorn PyMySQL SQLAlchemy reportlab requests PyJWT oauthlib
 ```
 
 ### 5. Configurar Nginx
@@ -178,16 +183,16 @@ sudo tail -f /var/log/nginx/voucher-app-access.log
 sudo tail -f /var/log/nginx/voucher-app-error.log
 
 # Status do banco de dados
-sudo systemctl status postgresql
+sudo systemctl status mysql
 
 # Backup do banco
-sudo -u postgres pg_dump voucher_db > backup_$(date +%Y%m%d_%H%M%S).sql
+mysqldump -u voucher -pvoucher_password_123 voucher_db > backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### Problemas comuns:
 
 1. **Aplicação não inicia**: Verificar logs do supervisor
-2. **Erro de banco**: Verificar se PostgreSQL está rodando
+2. **Erro de banco**: Verificar se MySQL está rodando
 3. **Erro 502**: Verificar se Gunicorn está rodando na porta 5000
 4. **Arquivos estáticos não carregam**: Verificar permissões em /opt/voucher-app/static/
 
@@ -206,7 +211,7 @@ DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
 # Backup do banco
-sudo -u postgres pg_dump voucher_db > $BACKUP_DIR/db_$DATE.sql
+mysqldump -u voucher -pvoucher_password_123 voucher_db > $BACKUP_DIR/db_$DATE.sql
 
 # Backup dos arquivos
 tar -czf $BACKUP_DIR/files_$DATE.tar.gz /opt/voucher-app --exclude=/opt/voucher-app/backups
@@ -230,7 +235,7 @@ sudo crontab -e
 ```bash
 # /opt/voucher-app/.env
 SESSION_SECRET=chave_muito_forte_e_unica
-DATABASE_URL=postgresql://voucher:senha_forte@localhost:5432/voucher_db
+DATABASE_URL=mysql+pymysql://voucher:senha_forte@localhost:3306/voucher_db
 OMADA_CONTROLLER_URL=https://seu-controller.com:8043
 OMADA_CLIENT_ID=seu_client_id
 OMADA_CLIENT_SECRET=seu_client_secret

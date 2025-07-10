@@ -3,16 +3,18 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15
+    image: mysql:8.0
     environment:
-      POSTGRES_DB: voucher_db
-      POSTGRES_USER: voucher
-      POSTGRES_PASSWORD: voucher_password_123
+      MYSQL_DATABASE: voucher_db
+      MYSQL_USER: voucher
+      MYSQL_PASSWORD: voucher_password_123
+      MYSQL_ROOT_PASSWORD: root_password_123
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     ports:
-      - "5432:5432"
+      - "3306:3306"
     restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
 
   app:
     build: .
@@ -20,7 +22,7 @@ services:
       - "5000:5000"
     environment:
       - SESSION_SECRET=sua_chave_secreta_muito_forte_aqui_123456789
-      - DATABASE_URL=postgresql://voucher:voucher_password_123@db:5432/voucher_db
+      - DATABASE_URL=mysql+pymysql://voucher:voucher_password_123@db:3306/voucher_db
       - OMADA_CONTROLLER_URL=https://seu-omada-controller.com:8043
       - OMADA_CLIENT_ID=seu_client_id
       - OMADA_CLIENT_SECRET=seu_client_secret
@@ -46,7 +48,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  mysql_data:
 
 # Arquivo Dockerfile necessário:
 # FROM python:3.11-slim

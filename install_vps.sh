@@ -12,22 +12,27 @@ sudo apt update && sudo apt upgrade -y
 
 # Instalar dependências do sistema
 echo "Instalando dependências..."
-sudo apt install -y python3 python3-pip python3-venv nginx postgresql postgresql-contrib supervisor git curl
+sudo apt install -y python3 python3-pip python3-venv nginx mysql-server supervisor git curl
 
 # Criar usuário para a aplicação
 echo "Criando usuário voucher..."
 sudo useradd -m -s /bin/bash voucher
 sudo usermod -aG sudo voucher
 
-# Configurar PostgreSQL
-echo "Configurando PostgreSQL..."
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
+# Configurar MySQL
+echo "Configurando MySQL..."
+sudo systemctl start mysql
+sudo systemctl enable mysql
 
-# Criar banco de dados
-sudo -u postgres psql -c "CREATE USER voucher WITH PASSWORD 'voucher_password_123';"
-sudo -u postgres psql -c "CREATE DATABASE voucher_db OWNER voucher;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE voucher_db TO voucher;"
+# Configurar MySQL para aceitar conexões locais
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root_password_123';"
+sudo mysql -u root -proot_password_123 -e "FLUSH PRIVILEGES;"
+
+# Criar banco de dados e usuário
+sudo mysql -u root -proot_password_123 -e "CREATE DATABASE voucher_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -u root -proot_password_123 -e "CREATE USER 'voucher'@'localhost' IDENTIFIED BY 'voucher_password_123';"
+sudo mysql -u root -proot_password_123 -e "GRANT ALL PRIVILEGES ON voucher_db.* TO 'voucher'@'localhost';"
+sudo mysql -u root -proot_password_123 -e "FLUSH PRIVILEGES;"
 
 # Criar diretório da aplicação
 echo "Criando diretório da aplicação..."
@@ -51,7 +56,7 @@ sudo -u voucher ./venv/bin/pip install WTForms==3.1.0
 sudo -u voucher ./venv/bin/pip install email-validator==2.1.0
 sudo -u voucher ./venv/bin/pip install Werkzeug==3.0.1
 sudo -u voucher ./venv/bin/pip install gunicorn==21.2.0
-sudo -u voucher ./venv/bin/pip install psycopg2-binary==2.9.9
+sudo -u voucher ./venv/bin/pip install PyMySQL==1.1.0
 sudo -u voucher ./venv/bin/pip install SQLAlchemy==2.0.23
 sudo -u voucher ./venv/bin/pip install reportlab==4.0.7
 sudo -u voucher ./venv/bin/pip install requests==2.31.0
@@ -63,7 +68,7 @@ echo "Criando arquivo de configuração..."
 sudo -u voucher cat > /opt/voucher-app/.env << 'EOF'
 # Configurações da aplicação
 SESSION_SECRET=sua_chave_secreta_muito_forte_aqui_123456789
-DATABASE_URL=postgresql://voucher:voucher_password_123@localhost:5432/voucher_db
+DATABASE_URL=mysql+pymysql://voucher:voucher_password_123@localhost:3306/voucher_db
 
 # Configurações do Omada Controller (configure conforme necessário)
 OMADA_CONTROLLER_URL=https://seu-omada-controller.com:8043
