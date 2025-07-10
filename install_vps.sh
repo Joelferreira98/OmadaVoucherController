@@ -48,7 +48,25 @@ echo ""
 
 echo "✓ Iniciando instalação..."
 
+# Solicitar configurações do banco de dados primeiro
+echo ""
+echo "=== Configuração do Banco de Dados ==="
+echo "Escolha o tipo de banco de dados:"
+echo "1. MySQL Local (instalar na VPS)"
+echo "2. MySQL/MariaDB Remoto (banco online)"
+echo "3. PostgreSQL Remoto"
+echo ""
+
+while true; do
+    read -p "Digite sua escolha (1-3): " DB_CHOICE
+    case $DB_CHOICE in
+        1|2|3) break;;
+        *) echo "Opção inválida. Digite 1, 2 ou 3.";;
+    esac
+done
+
 # Atualizar sistema
+echo ""
 echo "Atualizando sistema..."
 sudo apt update && sudo apt upgrade -y
 
@@ -56,7 +74,7 @@ sudo apt update && sudo apt upgrade -y
 echo "Instalando dependências básicas..."
 sudo apt install -y python3 python3-pip python3-venv nginx supervisor git curl
 
-# Instalar MySQL apenas se for local
+# Instalar banco de dados específico
 if [ "$DB_CHOICE" = "1" ]; then
     echo "Instalando MySQL local..."
     sudo apt install -y mysql-server
@@ -80,27 +98,13 @@ if [ "$DB_CHOICE" = "1" ]; then
     sudo systemctl enable mysql
 fi
 
-# Solicitar configurações do banco de dados
+# Configurar conexão do banco de dados
 echo ""
-echo "=== Configuração do Banco de Dados ==="
-echo "Escolha o tipo de banco de dados:"
-echo "1. MySQL Local (instalar na VPS)"
-echo "2. MySQL/MariaDB Remoto (banco online)"
-echo "3. PostgreSQL Remoto"
-echo ""
-
-while true; do
-    read -p "Digite sua escolha (1-3): " DB_CHOICE
-    case $DB_CHOICE in
-        1|2|3) break;;
-        *) echo "Opção inválida. Digite 1, 2 ou 3.";;
-    esac
-done
+echo "=== Configuração da Conexão do Banco ==="
 
 if [ "$DB_CHOICE" = "1" ]; then
     # MySQL Local
-    echo ""
-    echo "=== Configuração MySQL Local ==="
+    echo "Configurando MySQL Local..."
     DB_HOST="localhost"
     DB_PORT="3306"
     DB_ROOT_PASSWORD=$(read_password "Digite a senha para o usuário root do MySQL")
@@ -123,8 +127,7 @@ if [ "$DB_CHOICE" = "1" ]; then
     
 elif [ "$DB_CHOICE" = "2" ]; then
     # MySQL/MariaDB Remoto
-    echo ""
-    echo "=== Configuração MySQL/MariaDB Remoto ==="
+    echo "Configurando MySQL/MariaDB Remoto..."
     DB_HOST=$(read_input "Host do banco de dados" "")
     DB_PORT=$(read_input "Porta do banco de dados" "3306")
     DB_NAME=$(read_input "Nome do banco de dados" "voucher_db")
@@ -154,8 +157,7 @@ elif [ "$DB_CHOICE" = "2" ]; then
     
 elif [ "$DB_CHOICE" = "3" ]; then
     # PostgreSQL Remoto
-    echo ""
-    echo "=== Configuração PostgreSQL Remoto ==="
+    echo "Configurando PostgreSQL Remoto..."
     DB_HOST=$(read_input "Host do banco de dados" "")
     DB_PORT=$(read_input "Porta do banco de dados" "5432")
     DB_NAME=$(read_input "Nome do banco de dados" "voucher_db")
