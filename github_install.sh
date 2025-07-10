@@ -181,11 +181,30 @@ if [ "$DB_CHOICE" = "1" ]; then
     DB_PASSWORD=$(read_password "Senha do usuário do banco de dados")
     
     # Configurar MySQL
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_ROOT_PASSWORD';"
-    mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
-    mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
-    mysql -u root -p$DB_ROOT_PASSWORD -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';"
+    log_info "Configurando usuário root do MySQL..."
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_ROOT_PASSWORD';" || {
+        log_error "Erro ao configurar senha do root"
+        exit 1
+    }
+    
+    log_info "Criando banco de dados..."
+    mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" || {
+        log_error "Erro ao criar banco de dados"
+        exit 1
+    }
+    
+    log_info "Criando usuário do banco..."
+    mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" || {
+        log_error "Erro ao criar usuário"
+        exit 1
+    }
+    
+    log_info "Concedendo privilégios..."
+    mysql -u root -p$DB_ROOT_PASSWORD -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';" || {
+        log_error "Erro ao conceder privilégios"
+        exit 1
+    }
+    
     mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
     
     DATABASE_URL="mysql+pymysql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
@@ -378,6 +397,38 @@ ufw allow OpenSSH
 ufw allow 'Nginx Full'
 ufw --force enable
 
+# Testar conexão com banco de dados
+log_info "Testando conexão com banco de dados..."
+if [ "$DB_CHOICE" = "1" ]; then
+    # Testar MySQL local
+    mysql -u$DB_USER -p$DB_PASSWORD -h$DB_HOST -P$DB_PORT -e "SELECT 1;" "$DB_NAME" || {
+        log_error "Erro ao conectar com MySQL local!"
+        exit 1
+    }
+elif [ "$DB_CHOICE" = "2" ]; then
+    # Testar MySQL remoto
+    if command -v mysql &> /dev/null; then
+        mysql -u$DB_USER -p$DB_PASSWORD -h$DB_HOST -P$DB_PORT -e "SELECT 1;" "$DB_NAME" || {
+            log_error "Erro ao conectar com MySQL remoto!"
+            exit 1
+        }
+    else
+        log_info "MySQL client não instalado, pulando teste de conexão..."
+    fi
+elif [ "$DB_CHOICE" = "3" ]; then
+    # Testar PostgreSQL remoto
+    if command -v psql &> /dev/null; then
+        PGPASSWORD=$DB_PASSWORD psql -h$DB_HOST -p$DB_PORT -U$DB_USER -d$DB_NAME -c "SELECT 1;" || {
+            log_error "Erro ao conectar com PostgreSQL remoto!"
+            exit 1
+        }
+    else
+        log_info "PostgreSQL client não instalado, pulando teste de conexão..."
+    fi
+fi
+
+log_success "Conexão com banco de dados verificada!"
+
 # Testar configuração da aplicação
 log_info "Testando configuração da aplicação..."
 cd /opt/voucher-app
@@ -423,6 +474,8 @@ if [ $? -eq 0 ]; then
     log_success "Configuração da aplicação verificada!"
 else
     log_error "Erro na configuração da aplicação!"
+    log_info "Verificando logs de erro..."
+    cat test_app.py
     exit 1
 fi
 
