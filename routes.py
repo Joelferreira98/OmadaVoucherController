@@ -176,6 +176,68 @@ def sync_sites():
     
     return redirect(url_for('master_dashboard'))
 
+@app.route('/master/config', methods=['GET', 'POST'])
+@login_required
+def omada_config():
+    if current_user.user_type != 'master':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    form = OmadaConfigForm()
+    config = OmadaConfig.query.filter_by(is_active=True).first()
+    
+    if form.validate_on_submit():
+        if config:
+            # Update existing config
+            config.controller_url = form.controller_url.data
+            config.client_id = form.client_id.data
+            config.client_secret = form.client_secret.data
+            config.omadac_id = form.omadac_id.data
+            config.updated_at = datetime.utcnow()
+            # Clear existing tokens when config changes
+            config.access_token = None
+            config.refresh_token = None
+            config.token_expires_at = None
+        else:
+            # Create new config
+            config = OmadaConfig(
+                controller_url=form.controller_url.data,
+                client_id=form.client_id.data,
+                client_secret=form.client_secret.data,
+                omadac_id=form.omadac_id.data,
+                is_active=True
+            )
+            db.session.add(config)
+        
+        db.session.commit()
+        flash('Configuração do Omada Controller salva com sucesso.', 'success')
+        return redirect(url_for('omada_config'))
+    
+    # Pre-populate form with existing config
+    if config:
+        form.controller_url.data = config.controller_url
+        form.client_id.data = config.client_id
+        form.client_secret.data = config.client_secret
+        form.omadac_id.data = config.omadac_id
+    
+    return render_template('master/omada_config.html', form=form, config=config)
+
+@app.route('/master/test_connection', methods=['POST'])
+@login_required
+def test_connection():
+    if current_user.user_type != 'master':
+        return jsonify({'success': False, 'message': 'Acesso negado'})
+    
+    try:
+        # Test connection using the Omada API
+        token = omada_api.get_access_token()
+        if token:
+            return jsonify({'success': True, 'message': 'Conexão estabelecida com sucesso'})
+        else:
+            return jsonify({'success': False, 'message': 'Falha na autenticação'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 # Admin Routes
 @app.route('/admin/site_selection')
 @login_required

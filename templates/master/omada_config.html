@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração Omada Controller{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Configuração do Omada Controller</h1>
+            <a href="{{ url_for('master_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Voltar ao Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Configurações da API</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.controller_url.label(class="form-label") }}
+                        {{ form.controller_url(class="form-control", placeholder="https://omada.exemplo.com:8043") }}
+                        {% if form.controller_url.errors %}
+                            <div class="text-danger">
+                                {% for error in form.controller_url.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">URL completa do Omada Controller (incluindo porta)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.client_id.label(class="form-label") }}
+                        {{ form.client_id(class="form-control", placeholder="seu-client-id") }}
+                        {% if form.client_id.errors %}
+                            <div class="text-danger">
+                                {% for error in form.client_id.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Client ID fornecido pelo Omada Controller</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.client_secret.label(class="form-label") }}
+                        {{ form.client_secret(class="form-control", placeholder="seu-client-secret", type="password") }}
+                        {% if form.client_secret.errors %}
+                            <div class="text-danger">
+                                {% for error in form.client_secret.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">Client Secret fornecido pelo Omada Controller</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.omadac_id.label(class="form-label") }}
+                        {{ form.omadac_id(class="form-control", placeholder="seu-omadac-id") }}
+                        {% if form.omadac_id.errors %}
+                            <div class="text-danger">
+                                {% for error in form.omadac_id.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted">ID do Omada Controller</small>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Salvar Configuração
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="testConnection()">
+                            <i class="fas fa-plug me-2"></i>Testar Conexão
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Status da Conexão</h5>
+            </div>
+            <div class="card-body">
+                {% if config %}
+                    <div class="mb-3">
+                        <strong>URL:</strong><br>
+                        <small class="text-muted">{{ config.controller_url }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Client ID:</strong><br>
+                        <small class="text-muted">{{ config.client_id }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Status do Token:</strong><br>
+                        {% if config.access_token %}
+                            <span class="badge bg-success">Token Ativo</span>
+                        {% else %}
+                            <span class="badge bg-warning">Token Não Configurado</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Última Atualização:</strong><br>
+                        <small class="text-muted">{{ config.updated_at.strftime('%d/%m/%Y %H:%M') if config.updated_at else 'Não atualizado' }}</small>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Nenhuma configuração encontrada. Configure a API para começar a usar o sistema.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Como Configurar</h5>
+            </div>
+            <div class="card-body">
+                <ol class="small">
+                    <li>Acesse o painel do Omada Controller</li>
+                    <li>Vá para Configurações > API</li>
+                    <li>Crie uma nova aplicação API</li>
+                    <li>Copie o Client ID e Client Secret</li>
+                    <li>Insira as informações no formulário</li>
+                    <li>Teste a conexão</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function testConnection() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testando...';
+    
+    fetch('/master/test_connection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Conexão testada com sucesso!', 'success');
+        } else {
+            showAlert('Erro na conexão: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Erro ao testar conexão: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.row');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}
