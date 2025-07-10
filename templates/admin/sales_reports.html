@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios de Vendas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Relatórios de Vendas</h1>
+            <div>
+                <button class="btn btn-outline-primary" onclick="exportReport()">
+                    <i class="fas fa-download me-2"></i>Exportar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" name="start_date" value="{{ start_date.strftime('%Y-%m-%d') if start_date }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Data Final</label>
+                        <input type="date" class="form-control" name="end_date" value="{{ end_date.strftime('%Y-%m-%d') if end_date }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5>Total de Vouchers</h5>
+                <h2>{{ sales_data.total_vouchers }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5>Receita Total</h5>
+                <h2>{{ sales_data.total_revenue | currency }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5>Ticket Médio</h5>
+                <h2>
+                    {% if sales_data.total_vouchers > 0 %}
+                        {{ (sales_data.total_revenue / sales_data.total_vouchers) | currency }}
+                    {% else %}
+                        R$ 0,00
+                    {% endif %}
+                </h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Vendas por Plano</h5>
+            </div>
+            <div class="card-body">
+                {% if sales_data.plan_sales %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Plano</th>
+                                    <th>Quantidade</th>
+                                    <th>Receita</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for plan_name, data in sales_data.plan_sales.items() %}
+                                <tr>
+                                    <td>{{ plan_name }}</td>
+                                    <td>{{ data.quantity }}</td>
+                                    <td>{{ data.revenue | currency }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Nenhum dado encontrado.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Vendas por Vendedor</h5>
+            </div>
+            <div class="card-body">
+                {% if sales_data.vendor_sales %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Vendedor</th>
+                                    <th>Quantidade</th>
+                                    <th>Receita</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vendor_name, data in sales_data.vendor_sales.items() %}
+                                <tr>
+                                    <td>{{ vendor_name }}</td>
+                                    <td>{{ data.quantity }}</td>
+                                    <td>{{ data.revenue | currency }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Nenhum dado encontrado.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Detalhes das Vendas</h5>
+            </div>
+            <div class="card-body">
+                {% if sales_data.voucher_groups %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Plano</th>
+                                    <th>Vendedor</th>
+                                    <th>Quantidade</th>
+                                    <th>Valor Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vg in sales_data.voucher_groups %}
+                                <tr>
+                                    <td>{{ vg.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>{{ vg.plan.name }}</td>
+                                    <td>{{ vg.created_by.username }}</td>
+                                    <td>{{ vg.quantity }}</td>
+                                    <td>{{ vg.total_value | currency }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Nenhuma venda encontrada.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function exportReport() {
+    alert('Funcionalidade de exportação será implementada em breve.');
+}
+</script>
+{% endblock %}

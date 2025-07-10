@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Vouchers{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Criar Vouchers</h1>
+            <div class="text-muted">
+                <i class="fas fa-building me-2"></i>{{ site.name }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Selecionar Plano e Quantidade</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('generate_vouchers') }}">
+                    <div class="mb-4">
+                        <label class="form-label">Plano de Voucher</label>
+                        <select class="form-select" name="plan_id" id="planSelect" required onchange="updatePlanDetails()">
+                            <option value="">Selecione um plano</option>
+                            {% for plan in plans %}
+                                <option value="{{ plan.id }}" 
+                                        data-price="{{ plan.price }}"
+                                        data-duration="{{ plan.duration }}"
+                                        data-unit="{{ plan.duration_unit }}"
+                                        data-quota="{{ plan.data_quota or 'Ilimitado' }}"
+                                        data-speed="{{ plan.download_speed or 'Ilimitado' }}">
+                                    {{ plan.name }} - {{ plan.price | currency }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Quantidade</label>
+                        <input type="number" class="form-control" name="quantity" id="quantityInput" min="1" max="1000" required onchange="updateTotal()">
+                        <div class="form-text">Máximo: 1000 vouchers por vez</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6>Resumo do Pedido</h6>
+                                <div id="orderSummary">
+                                    <p class="text-muted">Selecione um plano e quantidade para ver o resumo</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Criar Vouchers
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Planos Disponíveis</h5>
+            </div>
+            <div class="card-body">
+                {% if plans %}
+                    {% for plan in plans %}
+                    <div class="card mb-3 plan-card" data-plan-id="{{ plan.id }}">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ plan.name }}</h6>
+                            <div class="text-muted small">
+                                <div><i class="fas fa-clock me-2"></i>{{ plan.duration | duration(plan.duration_unit) }}</div>
+                                <div><i class="fas fa-dollar-sign me-2"></i>{{ plan.price | currency }}</div>
+                                {% if plan.data_quota %}
+                                    <div><i class="fas fa-database me-2"></i>{{ plan.data_quota }} MB</div>
+                                {% endif %}
+                                {% if plan.download_speed %}
+                                    <div><i class="fas fa-tachometer-alt me-2"></i>{{ plan.download_speed }} Mbps</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">Nenhum plano disponível. Contate o administrador.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updatePlanDetails() {
+    const select = document.getElementById('planSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption.value) {
+        const price = parseFloat(selectedOption.dataset.price);
+        const duration = selectedOption.dataset.duration;
+        const unit = selectedOption.dataset.unit;
+        const quota = selectedOption.dataset.quota;
+        const speed = selectedOption.dataset.speed;
+        
+        // Update summary
+        updateTotal();
+        
+        // Highlight selected plan
+        document.querySelectorAll('.plan-card').forEach(card => {
+            card.classList.remove('border-primary');
+        });
+        
+        const planCard = document.querySelector(`[data-plan-id="${selectedOption.value}"]`);
+        if (planCard) {
+            planCard.classList.add('border-primary');
+        }
+    }
+}
+
+function updateTotal() {
+    const select = document.getElementById('planSelect');
+    const quantityInput = document.getElementById('quantityInput');
+    const summaryDiv = document.getElementById('orderSummary');
+    
+    const selectedOption = select.options[select.selectedIndex];
+    const quantity = parseInt(quantityInput.value) || 0;
+    
+    if (selectedOption.value && quantity > 0) {
+        const price = parseFloat(selectedOption.dataset.price);
+        const total = price * quantity;
+        
+        summaryDiv.innerHTML = `
+            <div class="row">
+                <div class="col-6">Plano:</div>
+                <div class="col-6">${selectedOption.text}</div>
+            </div>
+            <div class="row">
+                <div class="col-6">Quantidade:</div>
+                <div class="col-6">${quantity}</div>
+            </div>
+            <div class="row">
+                <div class="col-6">Valor Unit.:</div>
+                <div class="col-6">R$ ${price.toFixed(2).replace('.', ',')}</div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-6"><strong>Total:</strong></div>
+                <div class="col-6"><strong>R$ ${total.toFixed(2).replace('.', ',')}</strong></div>
+            </div>
+        `;
+    } else {
+        summaryDiv.innerHTML = '<p class="text-muted">Selecione um plano e quantidade para ver o resumo</p>';
+    }
+}
+</script>
+{% endblock %}

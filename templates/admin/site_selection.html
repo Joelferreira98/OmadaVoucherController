@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Seleção de Site{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Selecione o Site</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Você tem acesso a múltiplos sites. Selecione o site que deseja gerenciar:</p>
+                
+                <div class="row">
+                    {% for admin_site in admin_sites %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ admin_site.site.name }}</h6>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-map-marker-alt me-2"></i>{{ admin_site.site.region or 'N/A' }}<br>
+                                        <i class="fas fa-building me-2"></i>{{ admin_site.site.scenario or 'N/A' }}
+                                    </small>
+                                </p>
+                                <a href="{{ url_for('select_site', site_id=admin_site.site.id) }}" class="btn btn-primary">
+                                    <i class="fas fa-arrow-right me-2"></i>Selecionar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

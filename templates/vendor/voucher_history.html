@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de Vouchers{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Histórico de Vouchers</h1>
+            <a href="{{ url_for('create_vouchers') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Criar Novos Vouchers
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if voucher_groups %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Plano</th>
+                                    <th>Quantidade</th>
+                                    <th>Valor Total</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vg in voucher_groups %}
+                                <tr>
+                                    <td>{{ vg.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ vg.plan.name }}</strong><br>
+                                            <small class="text-muted">
+                                                {{ vg.plan.duration | duration(vg.plan.duration_unit) }} - 
+                                                {{ vg.plan.price | currency }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ vg.quantity }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ vg.total_value | currency }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if vg.status == 'active' %}
+                                            <span class="badge bg-success">Ativo</span>
+                                        {% elif vg.status == 'used' %}
+                                            <span class="badge bg-warning">Usado</span>
+                                        {% elif vg.status == 'expired' %}
+                                            <span class="badge bg-danger">Expirado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ vg.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id) }}" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               title="Baixar PDF">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-info" 
+                                                    onclick="viewVoucherDetails({{ vg.id }})" 
+                                                    title="Ver Detalhes">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Summary Cards -->
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <h5>Total de Vouchers</h5>
+                                    <h3>{{ voucher_groups|sum(attribute='quantity') }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h5>Valor Total</h5>
+                                    <h3>{{ voucher_groups|sum(attribute='total_value') | currency }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body">
+                                    <h5>Lotes Criados</h5>
+                                    <h3>{{ voucher_groups|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-ticket-alt fa-4x text-muted mb-3"></i>
+                        <h5>Nenhum voucher criado ainda</h5>
+                        <p class="text-muted">Comece criando seu primeiro lote de vouchers</p>
+                        <a href="{{ url_for('create_vouchers') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Criar Vouchers
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Voucher Details Modal -->
+<div class="modal fade" id="voucherDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do Voucher</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="voucherDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function viewVoucherDetails(voucherId) {
+    const modal = new bootstrap.Modal(document.getElementById('voucherDetailsModal'));
+    const contentDiv = document.getElementById('voucherDetailsContent');
+    
+    // Show loading
+    contentDiv.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    `;
+    
+    // Find voucher data (this would normally come from an API call)
+    const voucherGroups = {{ voucher_groups | tojson | safe }};
+    const voucher = voucherGroups.find(vg => vg.id === voucherId);
+    
+    if (voucher) {
+        contentDiv.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Informações do Plano</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Nome:</strong> ${voucher.plan.name}</li>
+                        <li><strong>Duração:</strong> ${voucher.plan.duration} ${voucher.plan.duration_unit}</li>
+                        <li><strong>Preço:</strong> R$ ${voucher.plan.price.toFixed(2).replace('.', ',')}</li>
+                        ${voucher.plan.data_quota ? `<li><strong>Franquia:</strong> ${voucher.plan.data_quota} MB</li>` : ''}
+                        ${voucher.plan.download_speed ? `<li><strong>Velocidade:</strong> ${voucher.plan.download_speed} Mbps</li>` : ''}
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Informações do Lote</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Quantidade:</strong> ${voucher.quantity}</li>
+                        <li><strong>Valor Total:</strong> R$ ${voucher.total_value.toFixed(2).replace('.', ',')}</li>
+                        <li><strong>Status:</strong> ${voucher.status}</li>
+                        <li><strong>Criado em:</strong> ${new Date(voucher.created_at).toLocaleString('pt-BR')}</li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-12">
+                    <h6>Códigos dos Vouchers</h6>
+                    <div class="voucher-codes-grid">
+                        ${voucher.voucher_codes.map(code => `
+                            <div class="voucher-code-item">
+                                <code>${code}</code>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        contentDiv.innerHTML = '<p class="text-danger">Erro ao carregar detalhes do voucher.</p>';
+    }
+    
+    modal.show();
+}
+</script>
+
+<style>
+.voucher-codes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.voucher-code-item {
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    text-align: center;
+    font-family: monospace;
+}
+
+.voucher-code-item code {
+    font-size: 12px;
+    color: #495057;
+}
+</style>
+{% endblock %}

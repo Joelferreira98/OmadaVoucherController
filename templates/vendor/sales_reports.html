@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios de Vendas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Relatórios de Vendas</h1>
+            <div>
+                <button class="btn btn-outline-primary" onclick="exportReport()">
+                    <i class="fas fa-download me-2"></i>Exportar
+                </button>
+                <button class="btn btn-outline-secondary" onclick="printReport()">
+                    <i class="fas fa-print me-2"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" name="start_date" value="{{ start_date.strftime('%Y-%m-%d') if start_date }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Data Final</label>
+                        <input type="date" class="form-control" name="end_date" value="{{ end_date.strftime('%Y-%m-%d') if end_date }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Total de Vouchers</h5>
+                        <h2>{{ total_vouchers }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-ticket-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Receita Total</h5>
+                        <h2>{{ total_revenue | currency }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5>Ticket Médio</h5>
+                        <h2>
+                            {% if total_vouchers > 0 %}
+                                {{ (total_revenue / total_vouchers) | currency }}
+                            {% else %}
+                                R$ 0,00
+                            {% endif %}
+                        </h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calculator fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Vendas dos Últimos 30 Dias</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Detalhes das Vendas</h5>
+            </div>
+            <div class="card-body">
+                {% if voucher_groups %}
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="salesTable">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Plano</th>
+                                    <th>Quantidade</th>
+                                    <th>Valor Unitário</th>
+                                    <th>Valor Total</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vg in voucher_groups %}
+                                <tr>
+                                    <td>{{ vg.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ vg.plan.name }}</strong><br>
+                                            <small class="text-muted">
+                                                {{ vg.plan.duration | duration(vg.plan.duration_unit) }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ vg.quantity }}</span>
+                                    </td>
+                                    <td>{{ vg.plan.price | currency }}</td>
+                                    <td><strong>{{ vg.total_value | currency }}</strong></td>
+                                    <td>
+                                        {% if vg.status == 'active' %}
+                                            <span class="badge bg-success">Ativo</span>
+                                        {% elif vg.status == 'used' %}
+                                            <span class="badge bg-warning">Usado</span>
+                                        {% elif vg.status == 'expired' %}
+                                            <span class="badge bg-danger">Expirado</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ vg.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id) }}" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               title="Baixar PDF">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-info" 
+                                                    onclick="viewSaleDetails({{ vg.id }})" 
+                                                    title="Ver Detalhes">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Performance Metrics -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Top 5 Planos Mais Vendidos</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% set plan_sales = {} %}
+                                    {% for vg in voucher_groups %}
+                                        {% set plan_name = vg.plan.name %}
+                                        {% set current_count = plan_sales.get(plan_name, 0) %}
+                                        {% set _ = plan_sales.update({plan_name: current_count + vg.quantity}) %}
+                                    {% endfor %}
+                                    
+                                    {% set sorted_plans = plan_sales.items() | sort(attribute=1, reverse=True) %}
+                                    {% for plan_name, count in sorted_plans[:5] %}
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>{{ plan_name }}</span>
+                                            <span class="badge bg-primary">{{ count }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Estatísticas do Período</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <div class="border-end">
+                                                <h4>{{ voucher_groups | length }}</h4>
+                                                <small class="text-muted">Lotes</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="border-end">
+                                                <h4>{{ total_vouchers }}</h4>
+                                                <small class="text-muted">Vouchers</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <h4>{{ total_revenue | currency }}</h4>
+                                            <small class="text-muted">Receita</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+                        <h5>Nenhuma venda encontrada</h5>
+                        <p class="text-muted">Não há vendas no período selecionado</p>
+                        <a href="{{ url_for('create_vouchers') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Criar Vouchers
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sale Details Modal -->
+<div class="modal fade" id="saleDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes da Venda</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="saleDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" onclick="downloadSalePDF()">
+                    <i class="fas fa-download me-2"></i>Baixar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load sales chart
+loadSalesChart();
+
+function viewSaleDetails(voucherId) {
+    const modal = new bootstrap.Modal(document.getElementById('saleDetailsModal'));
+    const contentDiv = document.getElementById('saleDetailsContent');
+    
+    // Show loading
+    contentDiv.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    `;
+    
+    // Find voucher data
+    const voucherGroups = {{ voucher_groups | tojson | safe }};
+    const voucher = voucherGroups.find(vg => vg.id === voucherId);
+    
+    if (voucher) {
+        contentDiv.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Informações da Venda</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Data:</strong> ${new Date(voucher.created_at).toLocaleString('pt-BR')}</li>
+                        <li><strong>Plano:</strong> ${voucher.plan.name}</li>
+                        <li><strong>Quantidade:</strong> ${voucher.quantity}</li>
+                        <li><strong>Valor Total:</strong> R$ ${voucher.total_value.toFixed(2).replace('.', ',')}</li>
+                        <li><strong>Status:</strong> ${voucher.status}</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Detalhes do Plano</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Duração:</strong> ${voucher.plan.duration} ${voucher.plan.duration_unit}</li>
+                        <li><strong>Preço Unit.:</strong> R$ ${voucher.plan.price.toFixed(2).replace('.', ',')}</li>
+                        ${voucher.plan.data_quota ? `<li><strong>Franquia:</strong> ${voucher.plan.data_quota} MB</li>` : ''}
+                        ${voucher.plan.download_speed ? `<li><strong>Velocidade:</strong> ${voucher.plan.download_speed} Mbps</li>` : ''}
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-12">
+                    <h6>Resumo Financeiro</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td>Valor unitário:</td>
+                                    <td>R$ ${voucher.plan.price.toFixed(2).replace('.', ',')}</td>
+                                </tr>
+                                <tr>
+                                    <td>Quantidade:</td>
+                                    <td>${voucher.quantity}</td>
+                                </tr>
+                                <tr class="table-success">
+                                    <td><strong>Total:</strong></td>
+                                    <td><strong>R$ ${voucher.total_value.toFixed(2).replace('.', ',')}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Store current voucher ID for download
+        window.currentVoucherId = voucherId;
+    } else {
+        contentDiv.innerHTML = '<p class="text-danger">Erro ao carregar detalhes da venda.</p>';
+    }
+    
+    modal.show();
+}
+
+function downloadSalePDF() {
+    if (window.currentVoucherId) {
+        window.open(`{{ url_for('download_vouchers', voucher_group_id=0) }}`.replace('0', window.currentVoucherId), '_blank');
+    }
+}
+
+function exportReport() {
+    // Get current filter parameters
+    const params = new URLSearchParams(window.location.search);
+    const startDate = params.get('start_date') || '';
+    const endDate = params.get('end_date') || '';
+    
+    // Create CSV content
+    let csvContent = 'Data,Plano,Quantidade,Valor Unitário,Valor Total,Status\n';
+    
+    const table = document.getElementById('salesTable');
+    const rows = table.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const date = cells[0].textContent.trim();
+        const plan = cells[1].querySelector('strong').textContent.trim();
+        const quantity = cells[2].textContent.trim();
+        const unitPrice = cells[3].textContent.trim();
+        const totalValue = cells[4].textContent.trim();
+        const status = cells[5].textContent.trim();
+        
+        csvContent += `"${date}","${plan}","${quantity}","${unitPrice}","${totalValue}","${status}"\n`;
+    });
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `vendas_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+function printReport() {
+    window.print();
+}
+
+// Print styles
+const printStyles = `
+    @media print {
+        .btn, .modal, .navbar { display: none !important; }
+        .card { border: 1px solid #dee2e6 !important; }
+        .table { font-size: 12px; }
+    }
+`;
+
+const style = document.createElement('style');
+style.textContent = printStyles;
+document.head.appendChild(style);
+</script>
+{% endblock %}
