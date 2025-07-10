@@ -913,12 +913,29 @@ def generate_vouchers():
                 # Success - get the voucher group ID from Omada
                 omada_group_id = result.get('result', {}).get('id')
                 
-                # Important: Due to Omada API limitations, we cannot retrieve the actual voucher codes
-                # The voucher codes are available only in the Omada Controller web interface
-                # We'll store a note for the user to access the real codes from Omada
-                voucher_codes = [f"OMADA-{omada_group_id}-{i+1:03d}" for i in range(form.quantity.data)]
-                
-                logging.warning(f"Generated placeholder codes. Real voucher codes must be accessed from Omada Controller web interface for group {omada_group_id}")
+                # Try to get the real voucher codes from Omada Controller
+                real_voucher_codes = []
+                try:
+                    # Wait a moment for the vouchers to be created in Omada
+                    import time
+                    time.sleep(2)
+                    
+                    # Get voucher group details which should include the actual codes
+                    group_details = omada_api.get_voucher_group_detail(vendor_site.site.site_id, omada_group_id)
+                    
+                    if group_details and group_details.get('errorCode') == 0:
+                        voucher_data_list = group_details.get('result', {}).get('data', [])
+                        real_voucher_codes = [voucher['code'] for voucher in voucher_data_list if 'code' in voucher]
+                        logging.info(f"Retrieved {len(real_voucher_codes)} real voucher codes from Omada Controller")
+                    
+                    # If we couldn't get real codes, use reference codes
+                    if not real_voucher_codes:
+                        real_voucher_codes = [f"OMADA-{omada_group_id}-{i+1:03d}" for i in range(form.quantity.data)]
+                        logging.warning(f"Could not retrieve real codes, using reference codes for group {omada_group_id}")
+                    
+                except Exception as e:
+                    logging.error(f"Error retrieving real voucher codes: {str(e)}")
+                    real_voucher_codes = [f"OMADA-{omada_group_id}-{i+1:03d}" for i in range(form.quantity.data)]
                 
                 # Create local voucher group record with proper initial status
                 voucher_group = VoucherGroup(
@@ -927,7 +944,7 @@ def generate_vouchers():
                     created_by_id=current_user.id,
                     quantity=form.quantity.data,
                     omada_group_id=omada_group_id,
-                    voucher_codes=voucher_codes,
+                    voucher_codes=real_voucher_codes,
                     total_value=plan.price * form.quantity.data,
                     unused_count=form.quantity.data,  # Initially all vouchers are unused
                     used_count=0,

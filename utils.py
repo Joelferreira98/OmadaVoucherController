@@ -94,21 +94,39 @@ def generate_voucher_pdf(voucher_group, voucher_codes: List[str]) -> bytes:
     
     story.append(table)
     
-    # Instructions
-    instructions = f"""
-    <b>IMPORTANTE - CÓDIGOS DE VOUCHER:</b><br/>
-    Os códigos reais dos vouchers estão disponíveis no Omada Controller.<br/>
-    Acesse: Painel do Omada Controller → Sites → Hotspot → Grupos de Vouchers<br/>
-    ID do Grupo: {voucher_group.omada_group_id}<br/><br/>
+    # Check if we have real codes or placeholder codes
+    has_real_codes = voucher_codes and not any('OMADA-' in str(code) for code in voucher_codes)
     
-    <b>Instruções de Uso:</b><br/>
-    1. Conecte-se à rede Wi-Fi do local<br/>
-    2. Abra o navegador e acesse qualquer site<br/>
-    3. Será redirecionado para a página de autenticação<br/>
-    4. Digite o código do voucher real (do Omada Controller) e clique em "Conectar"<br/>
-    5. Aguarde a confirmação da conexão<br/><br/>
-    <b>Importante:</b> Cada voucher pode ser usado apenas uma vez e tem validade conforme o plano escolhido.
-    """
+    if has_real_codes:
+        instructions = f"""
+        <b>Instruções de Uso:</b><br/>
+        1. Conecte-se à rede Wi-Fi do local<br/>
+        2. Abra o navegador e acesse qualquer site<br/>
+        3. Será redirecionado para a página de autenticação<br/>
+        4. Digite um dos códigos acima e clique em "Conectar"<br/>
+        5. Aguarde a confirmação da conexão<br/><br/>
+        <b>Importante:</b> Cada voucher pode ser usado apenas uma vez e tem validade conforme o plano escolhido.
+        """
+    else:
+        instructions = f"""
+        <b>⚠️ ATENÇÃO - CÓDIGOS DE REFERÊNCIA APENAS ⚠️</b><br/>
+        Os códigos mostrados acima são apenas para referência/organização.<br/>
+        <b>OS CÓDIGOS REAIS ESTÃO NO OMADA CONTROLLER:</b><br/><br/>
+        
+        <b>Como acessar os códigos reais:</b><br/>
+        1. Acesse o Omada Controller (interface web)<br/>
+        2. Vá em: Sites → Hotspot → Grupos de Vouchers<br/>
+        3. Localize o grupo: <b>{voucher_group.omada_group_id}</b><br/>
+        4. Clique no grupo para ver os códigos reais<br/><br/>
+        
+        <b>Exemplo:</b> O código real pode ser algo como "33537248" ao invés de "OMADA-686fd6..."<br/><br/>
+        
+        <b>Para usar os vouchers:</b><br/>
+        1. Conecte-se à rede Wi-Fi do local<br/>
+        2. Será redirecionado para página de autenticação<br/>
+        3. Digite o código REAL do Omada Controller<br/>
+        4. Clique em "Conectar"
+        """
     
     story.append(Spacer(1, 0.3*inch))
     instructions_para = Paragraph(instructions, header_style)
@@ -310,8 +328,21 @@ def sync_voucher_statuses_from_omada(site_id: int):
                     voucher_group.expired_count = group_data.get('expiredCount', 0)
                     voucher_group.last_sync = datetime.utcnow()
                     
+                    # Try to sync real voucher codes if we don't have them or have placeholders
+                    if (not voucher_group.voucher_codes or 
+                        any('OMADA-' in str(code) for code in voucher_group.voucher_codes)):
+                        try:
+                            group_details = omada_api.get_voucher_group_detail(site.site_id, omada_group_id)
+                            if group_details and group_details.get('errorCode') == 0:
+                                voucher_data_list = group_details.get('result', {}).get('data', [])
+                                real_codes = [voucher['code'] for voucher in voucher_data_list if 'code' in voucher]
+                                if real_codes:
+                                    voucher_group.voucher_codes = real_codes
+                                    logging.info(f"Updated voucher group {voucher_group.id} with {len(real_codes)} real codes")
+                        except Exception as e:
+                            logging.error(f"Error syncing codes for group {voucher_group.id}: {str(e)}")
+                    
                     # Update overall status based on counts
-                    # Expired vouchers are considered "sold" (used)
                     if voucher_group.expired_count > 0 or voucher_group.used_count > 0 or voucher_group.in_use_count > 0:
                         voucher_group.status = 'sold'
                     else:

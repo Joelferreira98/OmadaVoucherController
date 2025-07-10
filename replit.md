@@ -48,6 +48,16 @@ Preferred communication style: Simple, everyday language.
   - Updated templates to warn users about accessing real codes
   - Created fallback system with proper user guidance
 
+### Real Voucher Code Retrieval Enhancement (July 10, 2025)
+- **Problem**: Users received PDF with placeholder codes (e.g., "OMADA-686fd6d0adf92811290d0fac-001") instead of real codes ("33537248")
+- **Solution Implemented**:
+  - Added automatic real code retrieval after voucher group creation
+  - Implemented 2-second delay to allow Omada Controller to generate codes
+  - Enhanced sync_voucher_statuses_from_omada() to update placeholder codes with real codes
+  - Added intelligent PDF generation that detects real vs placeholder codes
+  - Updated PDF warnings to be more specific about code type
+  - Added fallback mechanism for when real codes cannot be retrieved
+
 ## System Architecture
 
 ### Backend Architecture
