@@ -1664,6 +1664,103 @@ def vendor_sales_reports():
         flash('Datas inválidas fornecidas.', 'error')
         return redirect(url_for('vendor_dashboard'))
 
+# Admin Delete Vouchers Routes
+@app.route('/admin/delete_voucher/<voucher_id>', methods=['POST'])
+@login_required
+def delete_voucher(voucher_id):
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    site = Site.query.get(current_site_id)
+    if not site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    try:
+        from omada_api import omada_api
+        result = omada_api.delete_voucher(site.site_id, voucher_id)
+        
+        if result and result.get('errorCode') == 0:
+            flash('Voucher excluído com sucesso!', 'success')
+            logging.info(f"Voucher {voucher_id} deleted by admin {current_user.username} for site {site.name}")
+        else:
+            error_msg = result.get('msg', 'Erro desconhecido') if result else 'Falha na comunicação'
+            flash(f'Erro ao excluir voucher: {error_msg}', 'error')
+            logging.error(f"Failed to delete voucher {voucher_id}: {error_msg}")
+    
+    except Exception as e:
+        logging.error(f"Error deleting voucher {voucher_id}: {str(e)}")
+        flash('Erro interno ao excluir voucher.', 'error')
+    
+    return redirect(request.referrer or url_for('admin_voucher_history'))
+
+@app.route('/admin/delete_voucher_groups', methods=['POST'])
+@login_required
+def delete_voucher_groups():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    site = Site.query.get(current_site_id)
+    if not site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    try:
+        # Get group IDs from form data
+        group_ids = request.form.getlist('group_ids')
+        if not group_ids:
+            flash('Nenhum grupo selecionado para exclusão.', 'warning')
+            return redirect(request.referrer or url_for('admin_voucher_history'))
+        
+        # Get voucher groups from database to get Omada group IDs
+        voucher_groups = VoucherGroup.query.filter(
+            VoucherGroup.id.in_(group_ids),
+            VoucherGroup.site_id == current_site_id
+        ).all()
+        
+        if not voucher_groups:
+            flash('Grupos de vouchers não encontrados.', 'error')
+            return redirect(request.referrer or url_for('admin_voucher_history'))
+        
+        # Extract Omada group IDs
+        omada_group_ids = [vg.omada_group_id for vg in voucher_groups if vg.omada_group_id]
+        
+        if omada_group_ids:
+            from omada_api import omada_api
+            result = omada_api.delete_voucher_groups(site.site_id, omada_group_ids)
+            
+            if result and result.get('errorCode') == 0:
+                # Delete from local database
+                for vg in voucher_groups:
+                    db.session.delete(vg)
+                db.session.commit()
+                
+                flash(f'{len(voucher_groups)} grupos de vouchers excluídos com sucesso!', 'success')
+                logging.info(f"{len(voucher_groups)} voucher groups deleted by admin {current_user.username} for site {site.name}")
+            else:
+                error_msg = result.get('msg', 'Erro desconhecido') if result else 'Falha na comunicação'
+                flash(f'Erro ao excluir grupos de vouchers: {error_msg}', 'error')
+                logging.error(f"Failed to delete voucher groups: {error_msg}")
+        else:
+            flash('Nenhum grupo válido encontrado no Omada Controller.', 'warning')
+    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting voucher groups: {str(e)}")
+        flash('Erro interno ao excluir grupos de vouchers.', 'error')
+    
+    return redirect(request.referrer or url_for('admin_voucher_history'))
+
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):

@@ -26,77 +26,91 @@
 
     {% if voucher_groups %}
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-transparent border-0 pb-0">
+            <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center">
                 <h6 class="fw-bold text-dark mb-0">Lotes de Vouchers</h6>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSelectedGroups()" disabled id="deleteSelectedBtn">
+                        <i class="fas fa-trash me-1"></i>Excluir Selecionados
+                    </button>
+                </div>
             </div>
             <div class="card-body pt-2">
-                <div class="table-responsive">
-                    <table class="table table-borderless table-sm mb-0">
-                        <thead>
-                            <tr class="text-muted small">
-                                <th class="border-0 fw-medium">Lote</th>
-                                <th class="border-0 fw-medium">Status dos Vouchers</th>
-                                <th class="border-0 fw-medium text-center">Receita</th>
-                                <th class="border-0 fw-medium text-end">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for vg in voucher_groups %}
-                                {% set sold_count = (vg.used_count or 0) + (vg.expired_count or 0) %}
-                                {% set revenue = sold_count * vg.plan.price %}
-                                <tr>
-                                    <td class="py-3">
-                                        <div class="d-flex align-items-center">
-                                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                                <i class="fas fa-ticket-alt text-muted"></i>
-                                            </div>
-                                            <div>
-                                                <div class="fw-bold text-dark">{{ vg.plan.name }}</div>
-                                                <div class="small text-muted">
-                                                    {{ vg.created_at.strftime('%d/%m/%Y %H:%M') }} • 
-                                                    por {{ vg.created_by.username }} • 
-                                                    {{ vg.quantity }} vouchers
+                <form id="deleteGroupsForm" method="POST" action="{{ url_for('delete_voucher_groups') }}">
+                    {{ csrf_token() }}
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-sm mb-0">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0 fw-medium" width="30">
+                                        <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th class="border-0 fw-medium">Lote</th>
+                                    <th class="border-0 fw-medium">Status dos Vouchers</th>
+                                    <th class="border-0 fw-medium text-center">Receita</th>
+                                    <th class="border-0 fw-medium text-end">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vg in voucher_groups %}
+                                    {% set sold_count = (vg.used_count or 0) + (vg.expired_count or 0) %}
+                                    {% set revenue = sold_count * vg.plan.price %}
+                                    <tr>
+                                        <td class="py-3">
+                                            <input type="checkbox" class="form-check-input group-checkbox" name="group_ids" value="{{ vg.id }}" onchange="updateDeleteButton()">
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-ticket-alt text-muted"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold text-dark">{{ vg.plan.name }}</div>
+                                                    <div class="small text-muted">
+                                                        {{ vg.created_at.strftime('%d/%m/%Y %H:%M') }} • 
+                                                        por {{ vg.created_by.username }} • 
+                                                        {{ vg.quantity }} vouchers
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td class="py-3">
-                                        <div class="d-flex gap-2 flex-wrap">
-                                            <span class="badge bg-secondary rounded-pill small">{{ vg.unused_count or 0 }} Não Usados</span>
-                                            <span class="badge bg-success rounded-pill small">{{ vg.used_count or 0 }} Usados</span>
-                                            <span class="badge bg-danger rounded-pill small">{{ vg.expired_count or 0 }} Expirados</span>
-                                        </div>
-                                        {% if sold_count > 0 %}
-                                            <span class="badge bg-success rounded-pill mt-1 small">Vendidos</span>
-                                        {% else %}
-                                            <span class="badge bg-warning rounded-pill mt-1 small">Gerados</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="py-3 text-center">
-                                        <div class="fw-bold">R$ {{ "%.2f"|format(revenue)|replace('.', ',') }}</div>
-                                        <div class="small text-muted">de R$ {{ "%.2f"|format(vg.total_value)|replace('.', ',') }}</div>
-                                    </td>
-                                    <td class="py-3 text-end">
-                                        <div class="d-flex gap-1 justify-content-end">
-                                            <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='a4') }}" 
-                                               class="btn btn-sm btn-outline-secondary" title="Download PDF A4">
-                                                <i class="fas fa-download small"></i>
-                                            </a>
-                                            <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='thermal') }}" 
-                                               class="btn btn-sm btn-outline-secondary" title="Download PDF 50x80mm">
-                                                <i class="fas fa-credit-card small"></i>
-                                            </a>
-                                            <a href="{{ url_for('print_vouchers', voucher_group_id=vg.id) }}" 
-                                               class="btn btn-sm btn-outline-secondary" title="Imprimir" target="_blank">
-                                                <i class="fas fa-print small"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="d-flex gap-2 flex-wrap">
+                                                <span class="badge bg-secondary rounded-pill small">{{ vg.unused_count or 0 }} Não Usados</span>
+                                                <span class="badge bg-success rounded-pill small">{{ vg.used_count or 0 }} Usados</span>
+                                                <span class="badge bg-danger rounded-pill small">{{ vg.expired_count or 0 }} Expirados</span>
+                                            </div>
+                                            {% if sold_count > 0 %}
+                                                <span class="badge bg-success rounded-pill mt-1 small">Vendidos</span>
+                                            {% else %}
+                                                <span class="badge bg-warning rounded-pill mt-1 small">Gerados</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-3 text-center">
+                                            <div class="fw-bold">R$ {{ "%.2f"|format(revenue)|replace('.', ',') }}</div>
+                                            <div class="small text-muted">de R$ {{ "%.2f"|format(vg.total_value)|replace('.', ',') }}</div>
+                                        </td>
+                                        <td class="py-3 text-end">
+                                            <div class="d-flex gap-1 justify-content-end">
+                                                <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='a4') }}" 
+                                                   class="btn btn-sm btn-outline-secondary" title="Download PDF A4">
+                                                    <i class="fas fa-download small"></i>
+                                                </a>
+                                                <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='thermal') }}" 
+                                                   class="btn btn-sm btn-outline-secondary" title="Download PDF 50x80mm">
+                                                    <i class="fas fa-credit-card small"></i>
+                                                </a>
+                                                <a href="{{ url_for('print_vouchers', voucher_group_id=vg.id) }}" 
+                                                   class="btn btn-sm btn-outline-secondary" title="Imprimir" target="_blank">
+                                                    <i class="fas fa-print small"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
             </div>
         </div>
     {% else %}
@@ -115,6 +129,47 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.group-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateDeleteButton();
+}
+
+function updateDeleteButton() {
+    const checkboxes = document.querySelectorAll('.group-checkbox:checked');
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+    
+    deleteBtn.disabled = checkboxes.length === 0;
+}
+
+function deleteSelectedGroups() {
+    const checkboxes = document.querySelectorAll('.group-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Selecione pelo menos um grupo para excluir.');
+        return;
+    }
+    
+    const count = checkboxes.length;
+    const message = `Tem certeza que deseja excluir ${count} grupo(s) de vouchers? Esta ação não pode ser desfeita.`;
+    
+    if (confirm(message)) {
+        document.getElementById('deleteGroupsForm').submit();
+    }
+}
+
+// Update delete button on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateDeleteButton();
+});
+</script>
 
 <style>
 .small-icon {

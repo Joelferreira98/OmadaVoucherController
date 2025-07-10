@@ -427,6 +427,99 @@ class OmadaAPI:
         except Exception as e:
             logging.error(f"Error deleting expired vouchers: {str(e)}")
             return None
+    
+    def delete_voucher(self, site_id: str, voucher_id: str) -> Optional[Dict]:
+        """Delete a specific voucher"""
+        endpoint = f"sites/{site_id}/hotspot/vouchers/{voucher_id}"
+        
+        logging.info(f"Deleting voucher {voucher_id} for site {site_id}")
+        
+        if not self._ensure_valid_token():
+            logging.error("Failed to obtain valid token for deleting voucher")
+            return None
+        
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/{endpoint}"
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        
+        try:
+            logging.debug(f"Making DELETE request to: {url}")
+            response = self.session.delete(url, headers=headers)
+            
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response text: {response.text}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            logging.info(f"Delete voucher response: {result}")
+            
+            if result.get('errorCode') != 0:
+                error_code = result.get('errorCode')
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Omada API returned error {error_code}: {error_msg}")
+            
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error deleting voucher: {str(e)}")
+            return None
+    
+    def delete_voucher_groups(self, site_id: str, group_ids: List[str], delete_type: int = 1) -> Optional[Dict]:
+        """Delete selected voucher groups
+        
+        Args:
+            site_id: Site ID
+            group_ids: List of voucher group IDs to delete
+            delete_type: 0=all groups, 1=selected groups, 2=all except selected
+        """
+        endpoint = f"sites/{site_id}/hotspot/voucher-groups/batch/delete"
+        
+        logging.info(f"Deleting voucher groups for site {site_id}: {group_ids}")
+        
+        if not self._ensure_valid_token():
+            logging.error("Failed to obtain valid token for deleting voucher groups")
+            return None
+        
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/{endpoint}"
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        data = {
+            "type": delete_type,
+            "groupIds": group_ids,
+            "searchKey": "",
+            "timeStart": 0
+        }
+        
+        try:
+            logging.debug(f"Making POST request to: {url}")
+            logging.debug(f"Request payload: {data}")
+            
+            response = self.session.post(url, headers=headers, json=data)
+            
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response text: {response.text}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            logging.info(f"Delete voucher groups response: {result}")
+            
+            if result.get('errorCode') != 0:
+                error_code = result.get('errorCode')
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Omada API returned error {error_code}: {error_msg}")
+            
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error deleting voucher groups: {str(e)}")
+            return None
 
 # Global instance
 omada_api = OmadaAPI()
