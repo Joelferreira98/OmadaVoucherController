@@ -59,6 +59,40 @@
                                   placeholder="Descrição adicional para o lote de vouchers"></textarea>
                     </div>
                     
+                    <!-- Format Options -->
+                    <div class="mb-3">
+                        <label class="form-label">Opções de Impressão</label>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="download_format" id="formatA4" value="a4" checked>
+                                    <label class="form-check-label" for="formatA4">
+                                        <i class="fas fa-file-pdf me-1"></i>PDF A4
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="download_format" id="format50x80" value="50x80mm">
+                                    <label class="form-check-label" for="format50x80">
+                                        <i class="fas fa-credit-card me-1"></i>Roll 50x80mm
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="download_format" id="formatPrint" value="print">
+                                    <label class="form-check-label" for="formatPrint">
+                                        <i class="fas fa-print me-1"></i>Imprimir A4
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            <small><strong>PDF A4:</strong> Download para impressão normal | <strong>Roll 50x80mm:</strong> Para impressoras de voucher | <strong>Imprimir A4:</strong> Abre diretamente para impressão</small>
+                        </div>
+                    </div>
+                    
                     <!-- Total Calculation -->
                     <div class="alert alert-success">
                         <div class="row">

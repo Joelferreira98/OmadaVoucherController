@@ -63,7 +63,8 @@ def generate_small_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, 
     story = []
     for i, code in enumerate(voucher_codes):
         if i > 0:
-            story.append(Spacer(1, 80*mm))  # Page break
+            from reportlab.platypus import PageBreak
+            story.append(PageBreak())  # Page break
         
         # Title and Code
         story.append(Paragraph("Voucher WiFi", title_style))

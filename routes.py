@@ -971,8 +971,15 @@ def generate_vouchers():
                 flash(f'{form.quantity.data} vouchers gerados com sucesso!', 'success')
                 logging.info(f"Vouchers generated: {form.quantity.data} vouchers by {current_user.username} for plan {plan.name}")
                 
-                # Redirect to download the vouchers
-                return redirect(url_for('download_vouchers', voucher_group_id=voucher_group.id))
+                # Get selected format and handle accordingly
+                download_format = request.form.get('download_format', 'a4')
+                
+                if download_format == 'print':
+                    # For print option, redirect to a print-friendly version
+                    return redirect(url_for('print_vouchers', voucher_group_id=voucher_group.id))
+                else:
+                    # For download options, redirect with format parameter
+                    return redirect(url_for('download_vouchers', voucher_group_id=voucher_group.id, format=download_format))
             else:
                 error_msg = result.get('msg', 'Erro na API do Omada Controller') if result else 'Falha na comunicação com o Controller'
                 flash(f'Erro ao gerar vouchers: {error_msg}', 'error')
@@ -1112,6 +1119,37 @@ def download_vouchers(voucher_group_id):
     except Exception as e:
         logging.error(f"Error generating PDF: {str(e)}")
         flash('Erro ao gerar PDF dos vouchers.', 'error')
+        return redirect(url_for('voucher_history'))
+
+@app.route('/vendor/print_vouchers/<int:voucher_group_id>')
+@login_required
+def print_vouchers(voucher_group_id):
+    if current_user.user_type != 'vendor':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
+    
+    # Check if this voucher group belongs to the current vendor
+    if voucher_group.created_by_id != current_user.id:
+        flash('Acesso negado a este grupo de vouchers.', 'error')
+        return redirect(url_for('voucher_history'))
+    
+    try:
+        # Generate PDF for printing (A4 format)
+        pdf_data = generate_voucher_pdf(voucher_group, voucher_group.voucher_codes, 'a4')
+        
+        # Create response for inline viewing (opens in browser for printing)
+        response = make_response(pdf_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'inline; filename=vouchers_print_{voucher_group.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        
+        logging.info(f"PDF opened for printing: voucher group {voucher_group_id} by {current_user.username}")
+        return response
+        
+    except Exception as e:
+        logging.error(f"Error generating PDF for printing: {str(e)}")
+        flash('Erro ao preparar PDF para impressão.', 'error')
         return redirect(url_for('voucher_history'))
 
 @app.route('/vendor/sales_reports')

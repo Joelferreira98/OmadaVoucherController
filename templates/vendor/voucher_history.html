@@ -203,6 +203,10 @@
                                                 <li><a class="dropdown-item" href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='50x80mm') }}">
                                                     <i class="fas fa-credit-card me-2"></i>PDF 50x80mm
                                                 </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('print_vouchers', voucher_group_id=vg.id) }}" target="_blank">
+                                                    <i class="fas fa-print me-2"></i>Imprimir A4
+                                                </a></li>
                                             </ul>
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-info" 
