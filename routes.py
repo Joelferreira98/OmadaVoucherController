@@ -366,13 +366,22 @@ def admin_dashboard():
     
     total_plans = VoucherPlan.query.filter_by(site_id=current_site_id, is_active=True).count()
     
-    total_vouchers = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
+    # Calculate vouchers generated vs sold
+    total_vouchers_generated = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
         VoucherGroup.site_id == current_site_id
     ).scalar() or 0
     
-    total_revenue = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
-        VoucherGroup.site_id == current_site_id
-    ).scalar() or 0
+    # Calculate vouchers actually sold (used + expired)
+    total_vouchers_sold = db.session.query(
+        db.func.sum((VoucherGroup.used_count or 0) + (VoucherGroup.expired_count or 0))
+    ).filter(VoucherGroup.site_id == current_site_id).scalar() or 0
+    
+    # Calculate revenue based on sold vouchers
+    voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
+    total_revenue = sum(
+        ((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price 
+        for vg in voucher_groups
+    )
     
     # Recent voucher activity
     recent_vouchers = VoucherGroup.query.filter_by(site_id=current_site_id).order_by(
@@ -384,7 +393,8 @@ def admin_dashboard():
                          admin_sites=admin_sites,
                          total_vendors=total_vendors,
                          total_plans=total_plans,
-                         total_vouchers=total_vouchers,
+                         total_vouchers_generated=total_vouchers_generated,
+                         total_vouchers_sold=total_vouchers_sold,
                          total_revenue=total_revenue,
                          recent_vouchers=recent_vouchers)
 
@@ -771,21 +781,23 @@ def vendor_dashboard():
     # Get available plans for this site
     plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
     
-    # Get vendor statistics
-    total_vouchers = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
+    # Get vendor statistics - generated vs sold
+    total_vouchers_generated = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
         VoucherGroup.created_by_id == current_user.id
     ).scalar() or 0
     
-    total_revenue = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
-        VoucherGroup.created_by_id == current_user.id
-    ).scalar() or 0
+    # Calculate vouchers actually sold (used + expired)
+    voucher_groups = VoucherGroup.query.filter_by(created_by_id=current_user.id).all()
+    total_vouchers_sold = sum((vg.used_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
+    total_revenue = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
     
-    # Monthly sales
+    # Monthly sales based on sold vouchers
     start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    monthly_sales = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
+    monthly_voucher_groups = VoucherGroup.query.filter(
         VoucherGroup.created_by_id == current_user.id,
         VoucherGroup.created_at >= start_of_month
-    ).scalar() or 0
+    ).all()
+    monthly_sales = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in monthly_voucher_groups)
     
     recent_vouchers = VoucherGroup.query.filter_by(created_by_id=current_user.id).order_by(
         VoucherGroup.created_at.desc()
@@ -794,7 +806,8 @@ def vendor_dashboard():
     return render_template('vendor/dashboard.html',
                          site=vendor_site.site,
                          plans=plans,
-                         total_vouchers=total_vouchers,
+                         total_vouchers_generated=total_vouchers_generated,
+                         total_vouchers_sold=total_vouchers_sold,
                          total_revenue=total_revenue,
                          monthly_sales=monthly_sales,
                          recent_vouchers=recent_vouchers)
@@ -1077,16 +1090,23 @@ def download_vouchers(voucher_group_id):
         flash('Acesso negado a este grupo de vouchers.', 'error')
         return redirect(url_for('voucher_history'))
     
+    # Get format from request parameter
+    format_type = request.args.get('format', 'a4')  # Default to A4
+    
     try:
-        # Generate PDF
-        pdf_data = generate_voucher_pdf(voucher_group, voucher_group.voucher_codes)
+        # Generate PDF with specified format
+        pdf_data = generate_voucher_pdf(voucher_group, voucher_group.voucher_codes, format_type)
+        
+        # Set filename based on format
+        filename_suffix = "_50x80mm" if format_type == "50x80mm" else "_A4"
+        filename = f'vouchers_{voucher_group.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}{filename_suffix}.pdf'
         
         # Create response
         response = make_response(pdf_data)
         response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename=vouchers_{voucher_group.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
         
-        logging.info(f"PDF downloaded: voucher group {voucher_group_id} by {current_user.username}")
+        logging.info(f"PDF downloaded: voucher group {voucher_group_id} ({format_type}) by {current_user.username}")
         return response
         
     except Exception as e:

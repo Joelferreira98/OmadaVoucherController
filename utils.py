@@ -11,10 +11,90 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from flask import current_app
 from typing import List, Dict
 
-def generate_voucher_pdf(voucher_group, voucher_codes: List[str]) -> bytes:
-    """Generate PDF with voucher codes"""
+def generate_voucher_pdf(voucher_group, voucher_codes: List[str], format_type: str = "a4") -> bytes:
+    """Generate PDF with voucher codes in A4 or 50x80mm format"""
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    
+    if format_type == "50x80mm":
+        # Small voucher format (50x80mm)
+        from reportlab.lib.units import mm
+        page_size = (50*mm, 80*mm)
+        doc = SimpleDocTemplate(buffer, pagesize=page_size, rightMargin=2*mm, leftMargin=2*mm, topMargin=3*mm, bottomMargin=3*mm)
+        return generate_small_voucher_pdf(voucher_group, voucher_codes, buffer, doc)
+    else:
+        # Standard A4 format
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        return generate_standard_voucher_pdf(voucher_group, voucher_codes, buffer, doc)
+
+def generate_small_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, doc) -> bytes:
+    """Generate small format vouchers (50x80mm)"""
+    from reportlab.lib.units import mm
+    
+    # Create compact styles for small format
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'SmallTitle',
+        parent=styles['Heading1'],
+        fontSize=8,
+        spaceAfter=2*mm,
+        alignment=TA_CENTER,
+        textColor=colors.darkblue
+    )
+    code_style = ParagraphStyle(
+        'CodeStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
+    )
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=6,
+        alignment=TA_CENTER,
+        textColor=colors.black
+    )
+    
+    # Check if we have real codes or placeholder codes
+    has_real_codes = voucher_codes and not any('OMADA-' in str(code) for code in voucher_codes)
+    
+    # Generate one voucher per page
+    story = []
+    for i, code in enumerate(voucher_codes):
+        if i > 0:
+            story.append(Spacer(1, 80*mm))  # Page break
+        
+        # Title and Code
+        story.append(Paragraph("Voucher WiFi", title_style))
+        
+        if has_real_codes:
+            story.append(Paragraph(f"<b>{code}</b>", code_style))
+        else:
+            story.append(Paragraph("Ver Omada Controller", code_style))
+            story.append(Paragraph(f"ID: {voucher_group.omada_group_id}", info_style))
+        
+        story.append(Spacer(1, 2*mm))
+        
+        # Plan info
+        plan_info = f"""
+        <b>{voucher_group.plan.name}</b><br/>
+        Duração: {voucher_group.plan.duration} {voucher_group.plan.duration_unit}<br/>
+        Preço: R$ {voucher_group.plan.price:.2f}<br/>
+        Site: {voucher_group.site.name}
+        """
+        story.append(Paragraph(plan_info, info_style))
+        
+        if not has_real_codes:
+            story.append(Spacer(1, 1*mm))
+            story.append(Paragraph("⚠️ Código real no Omada Controller", info_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.read()
+
+def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, doc) -> bytes:
+    """Generate standard A4 format vouchers"""
     
     # Styles
     styles = getSampleStyleSheet()

@@ -190,11 +190,20 @@
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id) }}" 
-                                               class="btn btn-sm btn-outline-primary" 
-                                               title="Baixar PDF">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary dropdown-toggle" 
+                                                    data-bs-toggle="dropdown" 
+                                                    title="Baixar PDF">
                                                 <i class="fas fa-download"></i>
-                                            </a>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='a4') }}">
+                                                    <i class="fas fa-file-pdf me-2"></i>PDF A4
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='50x80mm') }}">
+                                                    <i class="fas fa-credit-card me-2"></i>PDF 50x80mm
+                                                </a></li>
+                                            </ul>
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-info" 
                                                     data-bs-toggle="modal" 
