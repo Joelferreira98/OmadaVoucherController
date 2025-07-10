@@ -171,9 +171,14 @@ Preferred communication style: Simple, everyday language.
 - **Comprehensive Guide**: Created GITHUB_INSTALL.md with detailed instructions
 - **Multi-Database Support**: GitHub installer supports MySQL local, MySQL remote, and PostgreSQL remote
 - **Production Ready**: Includes nginx, supervisor, firewall, and SSL configuration
+- **Import Error Resolution**: Fixed Gunicorn import issues with environment variable configuration
+- **Testing Integration**: Added automated testing of application import and database connection
+- **Enhanced Debugging**: Improved error logging and troubleshooting in installation script
+- **GitHub Repository**: https://github.com/Joelferreira98/OmadaVoucherController
 - **Simple Commands**: 
   - Quick: `curl -fsSL https://raw.githubusercontent.com/Joelferreira98/OmadaVoucherController/main/quick_install.sh | sudo bash`
   - Manual: Download github_install.sh and execute
+- **Upload Scripts**: Created prepare_github.sh and upload_to_github.sh for easy repository management
 
 ## System Architecture
 

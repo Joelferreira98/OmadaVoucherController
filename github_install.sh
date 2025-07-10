@@ -257,19 +257,23 @@ sudo -u voucher ./venv/bin/pip install --upgrade pip
 
 # Instalar dependências
 log_info "Instalando dependências Python..."
-sudo -u voucher ./venv/bin/pip install Flask==3.0.0
-sudo -u voucher ./venv/bin/pip install Flask-SQLAlchemy==3.1.1
-sudo -u voucher ./venv/bin/pip install Flask-Login==0.6.3
-sudo -u voucher ./venv/bin/pip install Flask-WTF==1.2.1
-sudo -u voucher ./venv/bin/pip install WTForms==3.1.0
-sudo -u voucher ./venv/bin/pip install email-validator==2.1.0
-sudo -u voucher ./venv/bin/pip install Werkzeug==3.0.1
-sudo -u voucher ./venv/bin/pip install gunicorn==21.2.0
-sudo -u voucher ./venv/bin/pip install SQLAlchemy==2.0.23
-sudo -u voucher ./venv/bin/pip install reportlab==4.0.7
-sudo -u voucher ./venv/bin/pip install requests==2.31.0
-sudo -u voucher ./venv/bin/pip install PyJWT==2.8.0
-sudo -u voucher ./venv/bin/pip install oauthlib==3.2.2
+if [ -f "app_requirements.txt" ]; then
+    sudo -u voucher ./venv/bin/pip install -r app_requirements.txt
+else
+    sudo -u voucher ./venv/bin/pip install Flask==3.0.0
+    sudo -u voucher ./venv/bin/pip install Flask-SQLAlchemy==3.1.1
+    sudo -u voucher ./venv/bin/pip install Flask-Login==0.6.3
+    sudo -u voucher ./venv/bin/pip install Flask-WTF==1.2.1
+    sudo -u voucher ./venv/bin/pip install WTForms==3.1.0
+    sudo -u voucher ./venv/bin/pip install email-validator==2.1.0
+    sudo -u voucher ./venv/bin/pip install Werkzeug==3.0.1
+    sudo -u voucher ./venv/bin/pip install gunicorn==21.2.0
+    sudo -u voucher ./venv/bin/pip install SQLAlchemy==2.0.23
+    sudo -u voucher ./venv/bin/pip install reportlab==4.0.7
+    sudo -u voucher ./venv/bin/pip install requests==2.31.0
+    sudo -u voucher ./venv/bin/pip install PyJWT==2.8.0
+    sudo -u voucher ./venv/bin/pip install oauthlib==3.2.2
+fi
 
 # Instalar driver específico do banco
 if [ "$DB_CHOICE" = "1" ] || [ "$DB_CHOICE" = "2" ]; then
@@ -320,7 +324,7 @@ chown voucher:voucher /var/log/voucher-app
 
 # Configurar Supervisor
 log_info "Configurando Supervisor..."
-cat > /etc/supervisor/conf.d/voucher-app.conf << 'EOF'
+cat > /etc/supervisor/conf.d/voucher-app.conf << EOF
 [program:voucher-app]
 command=/opt/voucher-app/venv/bin/gunicorn --config /opt/voucher-app/gunicorn.conf.py main:app
 directory=/opt/voucher-app
@@ -329,7 +333,7 @@ autostart=true
 autorestart=true
 redirect_stderr=true
 stdout_logfile=/var/log/voucher-app/supervisor.log
-environment=PATH="/opt/voucher-app/venv/bin"
+environment=PATH="/opt/voucher-app/venv/bin",DATABASE_URL="$DATABASE_URL",SESSION_SECRET="$SESSION_SECRET",OMADA_CONTROLLER_URL="$OMADA_URL",OMADA_CLIENT_ID="$OMADA_CLIENT_ID",OMADA_CLIENT_SECRET="$OMADA_CLIENT_SECRET",OMADA_OMADAC_ID="$OMADA_OMADAC_ID"
 EOF
 
 # Configurar Nginx
@@ -374,6 +378,57 @@ ufw allow OpenSSH
 ufw allow 'Nginx Full'
 ufw --force enable
 
+# Testar configuração da aplicação
+log_info "Testando configuração da aplicação..."
+cd /opt/voucher-app
+
+# Criar script de teste
+cat > test_app.py << EOF
+import os
+import sys
+import logging
+logging.basicConfig(level=logging.INFO)
+
+# Configurar variáveis de ambiente
+os.environ['DATABASE_URL'] = '$DATABASE_URL'
+os.environ['SESSION_SECRET'] = '$SESSION_SECRET'
+os.environ['OMADA_CONTROLLER_URL'] = '$OMADA_URL'
+os.environ['OMADA_CLIENT_ID'] = '$OMADA_CLIENT_ID'
+os.environ['OMADA_CLIENT_SECRET'] = '$OMADA_CLIENT_SECRET'
+os.environ['OMADA_OMADAC_ID'] = '$OMADA_OMADAC_ID'
+
+try:
+    print("Testando importação da aplicação...")
+    from app import app
+    print("✅ Aplicação importada com sucesso!")
+    
+    print("Testando conexão com banco...")
+    from app import db
+    with app.app_context():
+        db.create_all()
+    print("✅ Banco de dados conectado com sucesso!")
+    
+    print("✅ Todos os testes passaram!")
+except Exception as e:
+    print(f"❌ Erro: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+EOF
+
+# Executar teste
+sudo -u voucher ./venv/bin/python test_app.py
+
+if [ $? -eq 0 ]; then
+    log_success "Configuração da aplicação verificada!"
+else
+    log_error "Erro na configuração da aplicação!"
+    exit 1
+fi
+
+# Limpar script de teste
+rm -f test_app.py
+
 # Reiniciar serviços
 log_info "Reiniciando serviços..."
 systemctl restart nginx
@@ -387,12 +442,27 @@ supervisorctl reread
 supervisorctl update
 supervisorctl start voucher-app
 
-# Verificar status
-sleep 3
+# Aguardar aplicação iniciar
+sleep 10
+
+# Verificar se aplicação está rodando
 if supervisorctl status voucher-app | grep -q "RUNNING"; then
     log_success "Aplicação iniciada com sucesso!"
+    
+    # Testar se aplicação responde
+    log_info "Testando resposta da aplicação..."
+    sleep 5
+    if curl -s http://localhost:5000 > /dev/null; then
+        log_success "Aplicação está respondendo na porta 5000!"
+    else
+        log_warning "Aplicação pode estar iniciando ainda..."
+    fi
 else
     log_error "Erro ao iniciar aplicação!"
+    log_info "Verificando logs de erro..."
+    echo "--- Logs da aplicação ---"
+    tail -20 /var/log/voucher-app/supervisor.log
+    echo "--- Status do supervisor ---"
     supervisorctl status voucher-app
 fi
 
