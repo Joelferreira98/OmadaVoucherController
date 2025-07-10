@@ -7,10 +7,18 @@ from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
-from dotenv import load_dotenv
+# Load environment variables from .env file manually
+def load_env_file():
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    os.environ[key] = value
+    except FileNotFoundError:
+        pass
 
-# Load environment variables
-load_dotenv()
+load_env_file()
 
 # Install PyMySQL as MySQLdb
 pymysql.install_as_MySQLdb()
@@ -33,6 +41,7 @@ database_url = os.environ.get("DATABASE_URL")
 if not database_url:
     # Fallback for development - use SQLite
     database_url = "sqlite:///voucher_app.db"
+    logging.info("Using SQLite database fallback")
     
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
