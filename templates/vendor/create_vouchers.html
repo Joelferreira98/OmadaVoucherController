@@ -152,6 +152,11 @@ function updatePlanInfo() {
     const planInfo = document.getElementById('planInfo');
     const planDetails = document.getElementById('planDetails');
     
+    // Check if all elements exist
+    if (!planSelect || !planInfo || !planDetails) {
+        return;
+    }
+    
     if (planSelect.value && plansData[planSelect.value]) {
         const plan = plansData[planSelect.value];
         
@@ -192,6 +197,11 @@ function calculateTotal() {
     const totalVouchers = document.getElementById('totalVouchers');
     const totalValue = document.getElementById('totalValue');
     const generateBtn = document.getElementById('generateBtn');
+    
+    // Check if all elements exist
+    if (!planSelect || !quantityInput || !totalVouchers || !totalValue || !generateBtn) {
+        return;
+    }
     
     const quantity = parseInt(quantityInput.value) || 0;
     const planId = planSelect.value;
@@ -238,10 +248,36 @@ document.getElementById('voucherForm').addEventListener('submit', function(e) {
     return true;
 });
 
+// Reset button state on page load
+function resetButtonState() {
+    const btn = document.getElementById('generateBtn');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-cogs me-2"></i>Gerar Vouchers';
+        btn.disabled = false;
+        // Recalculate to set proper state
+        calculateTotal();
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    resetButtonState();
     updatePlanInfo();
     calculateTotal();
+});
+
+// Reset button when page becomes visible (back navigation)
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        resetButtonState();
+    }
+});
+
+// Reset button on page show (back/forward cache)
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        resetButtonState();
+    }
 });
 </script>
 {% endblock %}
