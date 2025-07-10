@@ -116,25 +116,41 @@ def create_admin():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    form = UserForm()
-    if form.validate_on_submit():
+    try:
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        # Validate required fields
+        if not username or not email or not password:
+            flash('Todos os campos são obrigatórios.', 'error')
+            return redirect(url_for('manage_admins'))
+        
         # Check if username already exists
-        if User.query.filter_by(username=form.username.data).first():
+        if User.query.filter_by(username=username).first():
             flash('Usuário já existe.', 'error')
             return redirect(url_for('manage_admins'))
         
+        # Check if email already exists
+        if User.query.filter_by(email=email).first():
+            flash('Email já existe.', 'error')
+            return redirect(url_for('manage_admins'))
+        
         user = User(
-            username=form.username.data,
-            email=form.email.data,
-            password_hash=generate_password_hash(form.password.data),
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
             user_type='admin',
             is_active=True
         )
         db.session.add(user)
         db.session.commit()
         
-        flash('Administrador criado com sucesso.', 'success')
-    else:
+        flash(f'Administrador {username} criado com sucesso.', 'success')
+        logging.info(f"New admin created: {username} by {current_user.username}")
+        
+    except Exception as e:
+        logging.error(f"Error creating admin: {str(e)}")
         flash('Erro ao criar administrador.', 'error')
     
     return redirect(url_for('manage_admins'))
@@ -146,19 +162,40 @@ def assign_sites():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    admin_id = request.form.get('admin_id')
-    site_ids = request.form.getlist('site_ids')
+    try:
+        admin_id = request.form.get('admin_id')
+        site_ids = request.form.getlist('site_ids')
+        
+        # Validate admin exists
+        admin = User.query.get(admin_id)
+        if not admin or admin.user_type != 'admin':
+            flash('Administrador não encontrado.', 'error')
+            return redirect(url_for('manage_admins'))
+        
+        # Remove existing assignments
+        AdminSite.query.filter_by(admin_id=admin_id).delete()
+        
+        # Add new assignments
+        assigned_count = 0
+        for site_id in site_ids:
+            site = Site.query.get(site_id)
+            if site:
+                admin_site = AdminSite(admin_id=admin_id, site_id=site_id)
+                db.session.add(admin_site)
+                assigned_count += 1
+        
+        db.session.commit()
+        
+        if assigned_count > 0:
+            flash(f'{assigned_count} sites atribuídos ao administrador {admin.username}.', 'success')
+            logging.info(f"Sites assigned to admin {admin.username}: {assigned_count} sites")
+        else:
+            flash('Nenhum site válido selecionado.', 'warning')
+            
+    except Exception as e:
+        logging.error(f"Error assigning sites: {str(e)}")
+        flash('Erro ao atribuir sites.', 'error')
     
-    # Remove existing assignments
-    AdminSite.query.filter_by(admin_id=admin_id).delete()
-    
-    # Add new assignments
-    for site_id in site_ids:
-        admin_site = AdminSite(admin_id=admin_id, site_id=site_id)
-        db.session.add(admin_site)
-    
-    db.session.commit()
-    flash('Sites atribuídos com sucesso.', 'success')
     return redirect(url_for('manage_admins'))
 
 @app.route('/master/sync_sites', methods=['POST'])

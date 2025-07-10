@@ -191,36 +191,51 @@ def sync_sites_from_omada():
     """Sync sites from Omada Controller"""
     from omada_api import omada_api
     from models import Site
-    
-    sites_data = omada_api.get_sites()
-    if not sites_data:
-        return False, "Falha ao obter sites do Omada Controller"
-    
-    synced_count = 0
-    for site_data in sites_data:
-        site = Site.query.filter_by(site_id=site_data['siteId']).first()
-        if not site:
-            site = Site(
-                site_id=site_data['siteId'],
-                name=site_data['name'],
-                region=site_data.get('region'),
-                timezone=site_data.get('timeZone'),
-                scenario=site_data.get('scenario'),
-                site_type=site_data.get('type', 0)
-            )
-            from app import db
-            db.session.add(site)
-            synced_count += 1
-        else:
-            # Update existing site
-            site.name = site_data['name']
-            site.region = site_data.get('region')
-            site.timezone = site_data.get('timeZone')
-            site.scenario = site_data.get('scenario')
-            site.site_type = site_data.get('type', 0)
-        
-        site.last_sync = datetime.utcnow()
-    
     from app import db
-    db.session.commit()
-    return True, f"{synced_count} sites sincronizados com sucesso"
+    
+    try:
+        # Get all sites from Omada Controller
+        sites_data = omada_api.get_sites(page=1, page_size=100)
+        if not sites_data:
+            return False, "Falha ao obter sites do Omada Controller. Verifique a configuração da API."
+        
+        synced_count = 0
+        updated_count = 0
+        
+        for site_data in sites_data:
+            site = Site.query.filter_by(site_id=site_data['siteId']).first()
+            if not site:
+                # Create new site
+                site = Site(
+                    site_id=site_data['siteId'],
+                    name=site_data['name'],
+                    region=site_data.get('region', ''),
+                    timezone=site_data.get('timeZone', ''),
+                    scenario=site_data.get('scenario', ''),
+                    site_type=site_data.get('type', 0),
+                    last_sync=datetime.utcnow()
+                )
+                db.session.add(site)
+                synced_count += 1
+                logging.info(f"New site added: {site_data['name']} (ID: {site_data['siteId']})")
+            else:
+                # Update existing site
+                site.name = site_data['name']
+                site.region = site_data.get('region', '')
+                site.timezone = site_data.get('timeZone', '')
+                site.scenario = site_data.get('scenario', '')
+                site.site_type = site_data.get('type', 0)
+                site.last_sync = datetime.utcnow()
+                updated_count += 1
+                logging.info(f"Site updated: {site_data['name']} (ID: {site_data['siteId']})")
+        
+        db.session.commit()
+        
+        total_sites = Site.query.count()
+        message = f"Sincronização concluída! {synced_count} novos sites, {updated_count} atualizados. Total: {total_sites} sites."
+        logging.info(message)
+        return True, message
+        
+    except Exception as e:
+        logging.error(f"Error syncing sites: {str(e)}")
+        return False, f"Erro na sincronização: {str(e)}"

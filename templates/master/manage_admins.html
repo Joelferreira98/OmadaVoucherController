@@ -83,6 +83,7 @@
                     </div>
                     
                     <input type="hidden" name="user_type" value="admin">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -104,20 +105,29 @@
             <form method="POST" action="{{ url_for('assign_sites') }}">
                 <div class="modal-body">
                     <input type="hidden" name="admin_id" id="assignAdminId">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <p>Selecione os sites para <strong id="assignAdminName"></strong>:</p>
                     
-                    {% for site in sites %}
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="site_ids" value="{{ site.id }}" id="site_{{ site.id }}">
-                        <label class="form-check-label" for="site_{{ site.id }}">
-                            {{ site.name }} ({{ site.region }})
-                        </label>
-                    </div>
-                    {% endfor %}
+                    {% if sites %}
+                        {% for site in sites %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="site_ids" value="{{ site.id }}" id="site_{{ site.id }}">
+                            <label class="form-check-label" for="site_{{ site.id }}">
+                                {{ site.name }}{% if site.region %} ({{ site.region }}){% endif %}
+                                <small class="text-muted d-block">ID: {{ site.site_id }}</small>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Nenhum site encontrado. Sincronize os sites primeiro clicando em "Sincronizar Sites" no dashboard.
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Atribuir</button>
+                    <button type="submit" class="btn btn-primary" {% if not sites %}disabled{% endif %}>Atribuir</button>
                 </div>
             </form>
         </div>
@@ -134,6 +144,21 @@ function assignSites(adminId, adminName) {
     // Clear all checkboxes
     const checkboxes = document.querySelectorAll('input[name="site_ids"]');
     checkboxes.forEach(cb => cb.checked = false);
+    
+    // Check currently assigned sites by finding admin row and getting assigned sites
+    const adminRow = document.querySelector(`button[onclick*="${adminId}"]`).closest('tr');
+    const assignedSites = adminRow.querySelector('td:nth-child(3)').querySelectorAll('.badge');
+    
+    // Mark currently assigned sites as checked
+    assignedSites.forEach(badge => {
+        const siteName = badge.textContent.trim();
+        checkboxes.forEach(cb => {
+            const label = cb.nextElementSibling;
+            if (label.textContent.includes(siteName)) {
+                cb.checked = true;
+            }
+        });
+    });
     
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('assignSitesModal'));
