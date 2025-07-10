@@ -53,9 +53,15 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* Global text color inheritance fix */
-* {
-    color: inherit;
+/* Theme-specific body background fixes */
+[data-theme="light"] body {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+[data-theme="dark"] body {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
 }
 
 /* Container and main content areas */
@@ -65,6 +71,17 @@ body {
 
 main {
     color: var(--text-primary);
+}
+
+/* Theme-specific container fixes */
+[data-theme="light"] .container-fluid,
+[data-theme="light"] main {
+    color: #212529 !important;
+}
+
+[data-theme="dark"] .container-fluid,
+[data-theme="dark"] main {
+    color: #ffffff !important;
 }
 
 /* Theme Toggle Button */
@@ -126,6 +143,37 @@ main {
 
 .card .text-muted {
     color: var(--text-muted) !important;
+}
+
+/* Theme-specific card fixes */
+[data-theme="light"] .card {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+}
+
+[data-theme="light"] .card-header {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+[data-theme="light"] .card-body {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+}
+
+[data-theme="dark"] .card {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .card-header {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .card-body {
+    background-color: #343a40 !important;
+    color: #ffffff !important;
 }
 
 /* Navbar */
