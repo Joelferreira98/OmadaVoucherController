@@ -5,50 +5,167 @@
 Antes de começar, certifique-se de ter:
 - Ubuntu 18.04+ ou Debian 9+
 - Acesso root ao servidor
-- Banco de dados MySQL configurado
+- Banco de dados MySQL configurado (local ou remoto)
 - Porta 80 e 5000 disponíveis
 
-## 🔧 Passo 1: Preparação do Sistema
+## 🚀 Instalação Rápida (Recomendada)
 
-### 1.1 Atualizar sistema
+### Opção 1: Clonar e configurar manualmente
+
 ```bash
+# 1. Clonar repositório
+git clone https://github.com/Joelferreira98/OmadaVoucherController.git
+cd OmadaVoucherController
+
+# 2. Copiar para diretório final
+sudo mkdir -p /opt/voucher-app
+sudo cp -r * /opt/voucher-app/
+sudo chown -R $USER:$USER /opt/voucher-app
+
+# 3. Configurar ambiente
+cd /opt/voucher-app
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 4. Configurar .env (veja seção abaixo)
+nano .env
+
+# 5. Testar aplicação
+python main.py
+```
+
+### Opção 2: Instalação em /opt como root
+
+```bash
+# 1. Preparar sistema
 sudo apt update && sudo apt upgrade -y
-```
+sudo apt install -y python3 python3-pip python3-venv git nginx supervisor mysql-client
 
-### 1.2 Instalar dependências básicas
-```bash
-sudo apt install -y python3 python3-pip python3-venv git curl wget
-sudo apt install -y nginx supervisor mysql-client
-sudo apt install -y build-essential python3-dev
-```
-
-### 1.3 Criar usuário do sistema
-```bash
+# 2. Criar usuário do sistema
 sudo useradd -m -s /bin/bash voucher
-sudo passwd voucher  # Opcional: definir senha
-```
 
-## 🗂️ Passo 2: Baixar e Configurar Aplicação
-
-### 2.1 Baixar código fonte
-```bash
+# 3. Clonar e instalar
 cd /tmp
 git clone https://github.com/Joelferreira98/OmadaVoucherController.git
-```
-
-### 2.2 Instalar aplicação
-```bash
 sudo mkdir -p /opt/voucher-app
-sudo cp -r /tmp/OmadaVoucherController/* /opt/voucher-app/
+sudo cp -r OmadaVoucherController/* /opt/voucher-app/
 sudo chown -R voucher:voucher /opt/voucher-app
+
+# 4. Configurar Python
 cd /opt/voucher-app
+sudo -u voucher python3 -m venv venv
+sudo -u voucher ./venv/bin/pip install --upgrade pip
+sudo -u voucher ./venv/bin/pip install -r requirements.txt
+
+# 5. Configurar .env
+sudo -u voucher nano .env
 ```
 
-### 2.3 Verificar arquivos principais
-```bash
-ls -la /opt/voucher-app/
-# Deve conter: app.py, main.py, models.py, routes.py, etc.
+## ⚙️ Configuração do Arquivo .env
+
+Crie o arquivo `.env` na raiz do projeto (`/opt/voucher-app/.env` ou `./OmadaVoucherController/.env`):
+
+### Exemplo de configuração para MySQL local:
+```env
+# Banco de dados MySQL local
+DATABASE_URL=mysql+pymysql://JOEL:SUA_SENHA@localhost:3306/omada_voucher_system
+
+# Chave de segurança (gere uma nova com: openssl rand -hex 32)
+SESSION_SECRET=f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8
+
+# Omada Controller (configurar depois na aplicação)
+OMADA_CONTROLLER_URL=https://controller.local:8043
+OMADA_CLIENT_ID=
+OMADA_CLIENT_SECRET=
+OMADA_OMADAC_ID=
 ```
+
+### Exemplo de configuração para MySQL remoto:
+```env
+# Banco de dados MySQL remoto
+DATABASE_URL=mysql+pymysql://JOEL:SUA_SENHA@194.163.133.179:3306/omada_voucher_system
+
+# Chave de segurança (gere uma nova com: openssl rand -hex 32)
+SESSION_SECRET=f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8
+
+# Omada Controller (configurar depois na aplicação)
+OMADA_CONTROLLER_URL=https://controller.local:8043
+OMADA_CLIENT_ID=
+OMADA_CLIENT_SECRET=
+OMADA_OMADAC_ID=
+```
+
+### Como gerar uma chave secreta:
+```bash
+# Gerar chave aleatória
+openssl rand -hex 32
+# Exemplo de resultado: f7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8
+```
+
+### Parâmetros importantes:
+- **DATABASE_URL**: Substitua `SUA_SENHA` pela senha real do MySQL
+- **SESSION_SECRET**: Use uma chave única gerada com openssl
+- **OMADA_CONTROLLER_URL**: Configure depois através da aplicação web
+- **OMADA_CLIENT_ID/SECRET**: Deixe vazio, configure na aplicação
+
+## 🧪 Teste de Conexão com Banco
+
+Antes de continuar, teste a conexão com o banco:
+
+```bash
+# Para MySQL local
+mysql -h localhost -P 3306 -u JOEL -p -e "SELECT 1;" omada_voucher_system
+
+# Para MySQL remoto
+mysql -h 194.163.133.179 -P 3306 -u JOEL -p -e "SELECT 1;" omada_voucher_system
+```
+
+## 📦 Instalação de Dependências Python
+
+Crie um arquivo `requirements.txt` ou instale diretamente:
+
+```bash
+# Ativar ambiente virtual
+cd /opt/voucher-app
+source venv/bin/activate
+
+# Instalar dependências
+pip install Flask==3.0.0
+pip install Flask-SQLAlchemy==3.1.1
+pip install Flask-Login==0.6.3
+pip install Flask-WTF==1.2.1
+pip install WTForms==3.1.0
+pip install email-validator==2.1.0
+pip install Werkzeug==3.0.1
+pip install gunicorn==21.2.0
+pip install SQLAlchemy==2.0.23
+pip install PyMySQL==1.1.0
+pip install reportlab==4.0.7
+pip install requests==2.31.0
+pip install PyJWT==2.8.0
+pip install oauthlib==3.2.2
+```
+
+## 🔧 Teste da Aplicação
+
+Após configurar o `.env`, teste se a aplicação funciona:
+
+```bash
+cd /opt/voucher-app
+python main.py
+```
+
+Se tudo estiver correto, você verá:
+```
+ * Running on http://0.0.0.0:5000
+```
+
+Acesse `http://SEU-IP:5000` para testar.
+
+## 📋 Configuração de Produção
+
+Para produção, configure Nginx e Supervisor:
 
 ## 🐍 Passo 3: Configurar Ambiente Python
 

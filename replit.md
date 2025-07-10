@@ -180,6 +180,24 @@ Preferred communication style: Simple, everyday language.
   - Manual: Download github_install.sh and execute
 - **Upload Scripts**: Created prepare_github.sh and upload_to_github.sh for easy repository management
 
+### Manual Installation System (July 10, 2025)
+- **Complete Manual Installation Guide**: Created comprehensive MANUAL_INSTALL.md and SIMPLE_MANUAL_INSTALL.md
+- **Git Clone Method**: Direct cloning from GitHub with manual configuration
+- **Environment Configuration**: Detailed .env file setup for MySQL local and remote connections
+- **Step-by-Step Process**: 
+  1. System preparation with dependencies
+  2. Git clone and file copying
+  3. Python virtual environment setup
+  4. Database configuration and testing
+  5. Application testing and production setup
+- **Multiple Installation Options**:
+  - Development setup (direct Python execution)
+  - Production setup (Nginx + Supervisor)
+  - VPS-specific installation (install_vps.sh)
+  - Complete removal system (uninstall.sh, cleanup.sh)
+- **Troubleshooting Tools**: Database connection testing scripts and diagnostic tools
+- **Simplified Configuration**: app_requirements.txt with all necessary dependencies
+
 ### Gunicorn Import Error Resolution (July 10, 2025)
 - **Critical Issue**: VPS installations failing with Gunicorn import errors due to main.py structure
 - **Root Cause**: Gunicorn unable to find Flask app object in main.py module
