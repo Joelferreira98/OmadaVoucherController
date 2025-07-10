@@ -1,4 +1,4 @@
-/* Dashboard Styles */
+/* Dashboard Styles - Enhanced for Theme System */
 :root {
     --primary-color: #0d6efd;
     --secondary-color: #6c757d;
@@ -10,36 +10,35 @@
     --dark-color: #212529;
 }
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
-}
+/* Removed body styles - now handled by themes.css */
 
-/* Navbar Customization */
-.navbar {
-    box-shadow: 0 2px 4px rgba(0,0,0,.1);
-}
-
+/* Navbar Customization - Theme-compatible */
 .navbar-brand {
     font-weight: 600;
 }
 
-/* Card Enhancements */
+/* Mobile navbar improvements */
+@media (max-width: 768px) {
+    .navbar-nav {
+        text-align: center;
+    }
+    
+    .navbar-nav .nav-item {
+        margin: 0.25rem 0;
+    }
+}
+
+/* Card Enhancements - Now using theme variables */
 .card {
-    border: none;
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,.05);
     transition: all 0.3s ease;
 }
 
 .card:hover {
-    box-shadow: 0 4px 20px rgba(0,0,0,.1);
     transform: translateY(-2px);
 }
 
 .card-header {
-    background-color: transparent;
-    border-bottom: 1px solid #dee2e6;
     font-weight: 600;
 }
 
@@ -95,15 +94,14 @@ body {
     color: #495057;
 }
 
-/* Tables */
+/* Tables - Theme-compatible */
 .table {
     border-radius: 8px;
     overflow: hidden;
 }
 
 .table thead th {
-    background-color: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    border-bottom: 2px solid var(--border-color);
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.875rem;
@@ -115,8 +113,34 @@ body {
 }
 
 .table tbody tr:hover {
-    background-color: #f8f9fa;
     transform: scale(1.01);
+}
+
+/* Mobile table optimizations */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .table thead th {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .table tbody td {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    /* Make action buttons stack vertically on small screens */
+    .table .d-flex.gap-1 {
+        flex-direction: column;
+        gap: 0.25rem !important;
+    }
+    
+    .table .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
 }
 
 /* Badges */

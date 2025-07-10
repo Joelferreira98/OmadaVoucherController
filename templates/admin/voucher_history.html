@@ -45,8 +45,8 @@
                                         <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
                                     </th>
                                     <th class="border-0 fw-medium">Lote</th>
-                                    <th class="border-0 fw-medium">Status dos Vouchers</th>
-                                    <th class="border-0 fw-medium text-center">Receita</th>
+                                    <th class="border-0 fw-medium d-none d-md-table-cell">Status dos Vouchers</th>
+                                    <th class="border-0 fw-medium text-center d-none d-sm-table-cell">Receita</th>
                                     <th class="border-0 fw-medium text-end">Ações</th>
                                 </tr>
                             </thead>
@@ -70,10 +70,26 @@
                                                         por {{ vg.created_by.username }} • 
                                                         {{ vg.quantity }} vouchers
                                                     </div>
+                                                    <!-- Mobile-only status display -->
+                                                    <div class="d-block d-md-none mt-2">
+                                                        <div class="d-flex gap-1 flex-wrap">
+                                                            <span class="badge bg-secondary rounded-pill" style="font-size: 0.7rem;">{{ vg.unused_count or 0 }} Não Usados</span>
+                                                            <span class="badge bg-success rounded-pill" style="font-size: 0.7rem;">{{ vg.used_count or 0 }} Usados</span>
+                                                            <span class="badge bg-danger rounded-pill" style="font-size: 0.7rem;">{{ vg.expired_count or 0 }} Expirados</span>
+                                                        </div>
+                                                        <div class="mt-1">
+                                                            {% if sold_count > 0 %}
+                                                                <span class="badge bg-success rounded-pill" style="font-size: 0.7rem;">Vendidos</span>
+                                                            {% else %}
+                                                                <span class="badge bg-warning rounded-pill" style="font-size: 0.7rem;">Gerados</span>
+                                                            {% endif %}
+                                                            <span class="fw-bold text-success ms-2">R$ {{ "%.2f"|format(revenue)|replace('.', ',') }}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="py-3">
+                                        <td class="py-3 d-none d-md-table-cell">
                                             <div class="d-flex gap-2 flex-wrap">
                                                 <span class="badge bg-secondary rounded-pill small">{{ vg.unused_count or 0 }} Não Usados</span>
                                                 <span class="badge bg-success rounded-pill small">{{ vg.used_count or 0 }} Usados</span>
@@ -85,23 +101,26 @@
                                                 <span class="badge bg-warning rounded-pill mt-1 small">Gerados</span>
                                             {% endif %}
                                         </td>
-                                        <td class="py-3 text-center">
+                                        <td class="py-3 text-center d-none d-sm-table-cell">
                                             <div class="fw-bold">R$ {{ "%.2f"|format(revenue)|replace('.', ',') }}</div>
                                             <div class="small text-muted">de R$ {{ "%.2f"|format(vg.total_value)|replace('.', ',') }}</div>
                                         </td>
                                         <td class="py-3 text-end">
-                                            <div class="d-flex gap-1 justify-content-end">
+                                            <div class="d-flex gap-1 justify-content-end flex-column flex-sm-row">
                                                 <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='a4') }}" 
                                                    class="btn btn-sm btn-outline-secondary" title="Download PDF A4">
                                                     <i class="fas fa-download small"></i>
+                                                    <span class="d-sm-none ms-1">A4</span>
                                                 </a>
                                                 <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='thermal') }}" 
                                                    class="btn btn-sm btn-outline-secondary" title="Download PDF 50x80mm">
                                                     <i class="fas fa-credit-card small"></i>
+                                                    <span class="d-sm-none ms-1">Térmica</span>
                                                 </a>
                                                 <a href="{{ url_for('print_vouchers', voucher_group_id=vg.id) }}" 
                                                    class="btn btn-sm btn-outline-secondary" title="Imprimir" target="_blank">
                                                     <i class="fas fa-print small"></i>
+                                                    <span class="d-sm-none ms-1">Imprimir</span>
                                                 </a>
                                             </div>
                                         </td>

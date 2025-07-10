@@ -78,12 +78,20 @@ function loadSalesChart() {
                             ticks: {
                                 callback: function(value) {
                                     return 'R$ ' + value.toFixed(2).replace('.', ',');
-                                }
+                                },
+                                color: getThemeColor('text')
+                            },
+                            grid: {
+                                color: getThemeColor('border')
                             }
                         },
                         x: {
                             ticks: {
-                                maxTicksLimit: 10
+                                maxTicksLimit: 10,
+                                color: getThemeColor('text')
+                            },
+                            grid: {
+                                color: getThemeColor('border')
                             }
                         }
                     },
@@ -349,6 +357,36 @@ function getUrlParameter(name) {
     const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
     const results = regex.exec(location.search);
     return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
+// Get theme colors for charts
+function getThemeColor(type) {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    
+    switch(type) {
+        case 'text':
+            return isDark ? '#ffffff' : '#212529';
+        case 'border':
+            return isDark ? '#495057' : '#dee2e6';
+        case 'background':
+            return isDark ? '#343a40' : '#ffffff';
+        default:
+            return isDark ? '#ffffff' : '#212529';
+    }
+}
+
+// Update charts when theme changes
+function updateChartsTheme() {
+    // This function can be called when theme changes to update all charts
+    if (typeof Chart !== 'undefined') {
+        Chart.helpers.each(Chart.instances, function(instance) {
+            instance.options.scales.x.ticks.color = getThemeColor('text');
+            instance.options.scales.x.grid.color = getThemeColor('border');
+            instance.options.scales.y.ticks.color = getThemeColor('text');
+            instance.options.scales.y.grid.color = getThemeColor('border');
+            instance.update();
+        });
+    }
 }
 
 // Update URL parameter
