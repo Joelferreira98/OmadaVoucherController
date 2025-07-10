@@ -575,6 +575,9 @@ def create_plan():
                 data_quota=form.data_quota.data if form.data_quota.data else None,
                 download_speed=form.download_speed.data if form.download_speed.data else None,
                 upload_speed=form.upload_speed.data if form.upload_speed.data else None,
+                code_length=form.code_length.data,
+                limit_type=form.limit_type.data,
+                limit_num=form.limit_num.data if form.limit_type.data != 2 else None,
                 is_active=form.is_active.data
             )
             
@@ -629,6 +632,9 @@ def edit_plan(plan_id):
             plan.data_quota = form.data_quota.data if form.data_quota.data else None
             plan.download_speed = form.download_speed.data if form.download_speed.data else None
             plan.upload_speed = form.upload_speed.data if form.upload_speed.data else None
+            plan.code_length = form.code_length.data
+            plan.limit_type = form.limit_type.data
+            plan.limit_num = form.limit_num.data if form.limit_type.data != 2 else None
             plan.is_active = form.is_active.data
             
             db.session.commit()
@@ -845,12 +851,11 @@ def generate_vouchers():
                 flash('Plano inválido.', 'error')
                 return redirect(url_for('create_vouchers'))
             
-            # Get advanced options from form
-            code_length = int(request.form.get('code_length', 8))
-            code_form_str = request.form.get('code_form', '0,1')
-            code_form = [int(x) for x in code_form_str.split(',')]
-            limit_type = int(request.form.get('limit_type', 2))
-            limit_num = int(request.form.get('limit_num', 1)) if limit_type != 2 else None
+            # Use plan settings for voucher generation
+            code_length = plan.code_length
+            code_form = [0]  # Always use numbers only
+            limit_type = plan.limit_type
+            limit_num = plan.limit_num if plan.limit_type != 2 else None
             description = request.form.get('description', '')
             
             # Convert plan duration to minutes for Omada API
@@ -908,15 +913,11 @@ def generate_vouchers():
                 # Success - get the voucher group ID from Omada
                 omada_group_id = result.get('result', {}).get('id')
                 
-                # Generate local voucher codes for PDF
+                # Generate local voucher codes for PDF (numbers only)
                 import random
                 import string
                 voucher_codes = []
-                char_set = ''
-                if 0 in code_form:  # Numbers
-                    char_set += string.digits
-                if 1 in code_form:  # Letters
-                    char_set += string.ascii_uppercase
+                char_set = string.digits  # Only numbers
                 
                 for _ in range(form.quantity.data):
                     code = ''.join(random.choices(char_set, k=code_length))

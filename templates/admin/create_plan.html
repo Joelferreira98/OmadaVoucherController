@@ -111,6 +111,46 @@
                     </div>
                     
                     <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.code_length.label(class="form-label") }}
+                                {{ form.code_length(class="form-control") }}
+                                <small class="form-text text-muted">Códigos sempre usarão apenas números</small>
+                                {% if form.code_length.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.code_length.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.limit_type.label(class="form-label") }}
+                                {{ form.limit_type(class="form-select", id="limit_type") }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row" id="limit_num_row" style="display: none;">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.limit_num.label(class="form-label") }}
+                                {{ form.limit_num(class="form-control") }}
+                                <small class="form-text text-muted" id="limit_num_help">Número de usos ou usuários simultâneos</small>
+                                {% if form.limit_num.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.limit_num.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <div class="form-check">
@@ -167,7 +207,7 @@
 
 {% block scripts %}
 <script>
-// Auto-format price input
+// Auto-format price input and handle limit type changes
 document.addEventListener('DOMContentLoaded', function() {
     const priceInput = document.getElementById('price');
     if (priceInput) {
@@ -175,6 +215,32 @@ document.addEventListener('DOMContentLoaded', function() {
             let value = e.target.value.replace(/[^\d.,]/g, '');
             e.target.value = value;
         });
+    }
+    
+    // Handle limit type changes
+    const limitType = document.getElementById('limit_type');
+    const limitNumRow = document.getElementById('limit_num_row');
+    const limitNumHelp = document.getElementById('limit_num_help');
+    
+    function updateLimitFields() {
+        const selectedValue = parseInt(limitType.value);
+        if (selectedValue === 0) {
+            // Limited Usage
+            limitNumRow.style.display = 'block';
+            limitNumHelp.textContent = 'Número máximo de vezes que o voucher pode ser usado';
+        } else if (selectedValue === 1) {
+            // Limited Users
+            limitNumRow.style.display = 'block';
+            limitNumHelp.textContent = 'Número máximo de usuários simultâneos';
+        } else {
+            // Unlimited
+            limitNumRow.style.display = 'none';
+        }
+    }
+    
+    if (limitType) {
+        limitType.addEventListener('change', updateLimitFields);
+        updateLimitFields(); // Initialize on page load
     }
 });
 </script>

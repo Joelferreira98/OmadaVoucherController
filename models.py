@@ -63,6 +63,9 @@ class VoucherPlan(db.Model):
     data_quota = db.Column(db.Integer)  # in MB, optional
     download_speed = db.Column(db.Integer)  # in Mbps, optional
     upload_speed = db.Column(db.Integer)  # in Mbps, optional
+    code_length = db.Column(db.Integer, default=8)  # voucher code length
+    limit_type = db.Column(db.Integer, default=2)  # 0=Limited Usage, 1=Limited Users, 2=Unlimited
+    limit_num = db.Column(db.Integer)  # limit number if limit_type != 2
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

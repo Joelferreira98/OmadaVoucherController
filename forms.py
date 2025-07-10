@@ -28,6 +28,13 @@ class VoucherPlanForm(FlaskForm):
     data_quota = IntegerField('Franquia de Dados (MB)', validators=[Optional(), NumberRange(min=0)])
     download_speed = IntegerField('Velocidade Download (Mbps)', validators=[Optional(), NumberRange(min=0)])
     upload_speed = IntegerField('Velocidade Upload (Mbps)', validators=[Optional(), NumberRange(min=0)])
+    code_length = IntegerField('Comprimento do Código', validators=[DataRequired(), NumberRange(min=6, max=10)], default=8)
+    limit_type = SelectField('Tipo de Limite', choices=[
+        (0, 'Uso Limitado'),
+        (1, 'Usuários Limitados'),
+        (2, 'Ilimitado')
+    ], validators=[DataRequired()], coerce=int, default=2)
+    limit_num = IntegerField('Número do Limite', validators=[Optional(), NumberRange(min=1, max=999)])
     is_active = BooleanField('Ativo', default=True)
 
 class VoucherGenerationForm(FlaskForm):
