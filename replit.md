@@ -58,6 +58,17 @@ Preferred communication style: Simple, everyday language.
   - Updated PDF warnings to be more specific about code type
   - Added fallback mechanism for when real codes cannot be retrieved
 
+### Ticket Layout Redesign (July 10, 2025)
+- **Problem**: User requested ticket format for customer delivery instead of table format
+- **Solution Implemented**:
+  - Redesigned PDF layouts for both A4 and 50x80mm formats as individual tickets
+  - A4 format: 6 tickets per page in 2x3 grid layout for easy cutting
+  - 50x80mm format: One ticket per page for thermal printers
+  - Each ticket includes: Site name, voucher code, plan name, and price
+  - Removed generic elements: "Voucher Internet" header, duration display, usage instructions
+  - Added cut lines (✂) for easy separation
+  - Professional ticket format suitable for customer delivery
+
 ## System Architecture
 
 ### Backend Architecture

@@ -107,15 +107,12 @@ def generate_small_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, 
         if i > 0:
             story.append(PageBreak())
         
-        # Header - Business type
-        story.append(Paragraph("VOUCHER INTERNET", header_style))
-        
         # Site name
         story.append(Paragraph(f"{voucher_group.site.name}", site_style))
         
         # Divider
         story.append(Paragraph("- - - - - - - - - - - - - - -", info_style))
-        story.append(Spacer(1, 1*mm))
+        story.append(Spacer(1, 2*mm))
         
         # Voucher code
         if has_real_codes:
@@ -127,22 +124,12 @@ def generate_small_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, 
         # Plan name
         story.append(Paragraph(f"{voucher_group.plan.name}", plan_style))
         
-        # Duration
-        duration_text = format_duration(voucher_group.plan.duration, voucher_group.plan.duration_unit)
-        story.append(Paragraph(f"Tempo: {duration_text}", info_style))
-        
         # Price
+        story.append(Spacer(1, 1*mm))
         story.append(Paragraph(f"{format_currency(voucher_group.plan.price)}", price_style))
         
-        # Instructions
-        story.append(Spacer(1, 2*mm))
-        story.append(Paragraph("COMO USAR:", info_style))
-        story.append(Paragraph("1. Conecte-se ao WiFi", info_style))
-        story.append(Paragraph("2. Digite o código", info_style))
-        story.append(Paragraph("3. Clique em Conectar", info_style))
-        
         # Cut line at bottom
-        story.append(Spacer(1, 1*mm))
+        story.append(Spacer(1, 3*mm))
         story.append(Paragraph("✂ - - - - - - - - - - - - - - - ✂", info_style))
     
     doc.build(story)
@@ -247,9 +234,6 @@ def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffe
         # Create ticket content
         ticket_content = []
         
-        # Header
-        ticket_content.append(Paragraph("VOUCHER INTERNET", ticket_header_style))
-        
         # Site name
         ticket_content.append(Paragraph(f"{voucher_group.site.name}", site_style))
         
@@ -263,18 +247,8 @@ def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffe
         # Plan name
         ticket_content.append(Paragraph(f"{voucher_group.plan.name}", plan_style))
         
-        # Duration
-        duration_text = format_duration(voucher_group.plan.duration, voucher_group.plan.duration_unit)
-        ticket_content.append(Paragraph(f"Tempo: {duration_text}", info_style))
-        
         # Price
         ticket_content.append(Paragraph(f"{format_currency(voucher_group.plan.price)}", price_style))
-        
-        # Instructions
-        ticket_content.append(Paragraph("COMO USAR:", info_style))
-        ticket_content.append(Paragraph("1. Conecte-se ao WiFi", info_style))
-        ticket_content.append(Paragraph("2. Digite o código", info_style))
-        ticket_content.append(Paragraph("3. Clique em Conectar", info_style))
         
         # Cut line
         ticket_content.append(Paragraph("✂ - - - - - - - - - - - - - - - ✂", cut_style))
