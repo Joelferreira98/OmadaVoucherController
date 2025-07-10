@@ -288,17 +288,22 @@ def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffe
             
             # If we have enough rows for a page, create the table
             if len(table_data) == rows_per_page or i == len(voucher_codes) - 1:
-                # Calculate responsive dimensions
+                # Calculate fixed dimensions based on full grid (4x8)
                 available_width = 7.5 * inch  # A4 width minus margins
                 available_height = 10 * inch  # A4 height minus margins
                 
                 col_width = available_width / tickets_per_row
-                row_height = available_height / len(table_data)
+                row_height = available_height / rows_per_page  # Always use full grid height
                 
-                # Create table with responsive tickets
+                # Fill remaining rows with empty cells if needed to maintain consistent sizing
+                while len(table_data) < rows_per_page:
+                    empty_row = [""] * tickets_per_row
+                    table_data.append(empty_row)
+                
+                # Create table with fixed ticket dimensions
                 table = Table(table_data, 
                             colWidths=[col_width] * tickets_per_row, 
-                            rowHeights=[row_height] * len(table_data))
+                            rowHeights=[row_height] * rows_per_page)
                 table.setStyle(TableStyle([
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),

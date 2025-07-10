@@ -62,12 +62,13 @@ Preferred communication style: Simple, everyday language.
 - **Problem**: User requested ticket format for customer delivery instead of table format
 - **Solution Implemented**:
   - Redesigned PDF layouts for both A4 and 50x80mm formats as individual tickets
-  - A4 format: 6 tickets per page in 2x3 grid layout for easy cutting
+  - A4 format: 32 tickets per page in 4x8 grid layout for easy cutting
   - 50x80mm format: One ticket per page for thermal printers
   - Each ticket includes: Site name, voucher code, plan name, and price
   - Removed generic elements: "Voucher Internet" header, duration display, usage instructions
   - Added cut lines (✂) for easy separation
   - Professional ticket format suitable for customer delivery
+  - Fixed ticket dimensions ensure consistent sizing regardless of voucher quantity
 
 ## System Architecture
 
