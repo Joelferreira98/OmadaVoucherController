@@ -180,6 +180,26 @@ Preferred communication style: Simple, everyday language.
   - Manual: Download github_install.sh and execute
 - **Upload Scripts**: Created prepare_github.sh and upload_to_github.sh for easy repository management
 
+### Gunicorn Import Error Resolution (July 10, 2025)
+- **Critical Issue**: VPS installations failing with Gunicorn import errors due to main.py structure
+- **Root Cause**: Gunicorn unable to find Flask app object in main.py module
+- **Solution Implemented**:
+  - Completely rewrote main.py to expose Flask app correctly for Gunicorn
+  - Added proper logging and error handling for production environment
+  - Created both 'app' and 'application' objects for compatibility
+  - Enhanced error reporting with traceback for debugging
+  - Added environment detection for development vs production modes
+- **Script Corrections**:
+  - Updated all installation scripts (github_install.sh, simple_install.sh, debug_install.sh)
+  - Fixed Gunicorn command line arguments to use proper binding and workers
+  - Removed gunicorn.conf.py dependency in favor of inline configuration
+  - Added fix_gunicorn.sh script for existing installations
+- **Production Deployment**: 
+  - All scripts now use: `gunicorn --bind 127.0.0.1:5000 --workers 2 --timeout 30 --keep-alive 2 --max-requests 1000 --preload main:app`
+  - Proper environment variable handling through supervisor
+  - Enhanced error logging to /var/log/voucher-app.log
+  - Automated testing of app import before service start
+
 ## System Architecture
 
 ### Backend Architecture

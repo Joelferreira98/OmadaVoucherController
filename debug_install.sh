@@ -270,7 +270,7 @@ chown voucher:voucher /opt/voucher-app/gunicorn.conf.py
 log_info "Configurando Supervisor..."
 cat > /etc/supervisor/conf.d/voucher-app.conf << EOF
 [program:voucher-app]
-command=/opt/voucher-app/venv/bin/gunicorn --config /opt/voucher-app/gunicorn.conf.py main:app
+command=/opt/voucher-app/venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 2 --timeout 30 --keep-alive 2 --max-requests 1000 --preload main:app
 directory=/opt/voucher-app
 user=voucher
 autostart=true
