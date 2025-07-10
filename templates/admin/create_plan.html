@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}{% if plan %}Editar Plano{% else %}Criar Plano{% endif %} - {{ current_site.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    {% if plan %}
+                        Editar Plano: {{ plan.name }}
+                    {% else %}
+                        Criar Novo Plano
+                    {% endif %}
+                </h4>
+                <small class="text-muted">Site: {{ current_site.name }}</small>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                {{ form.name.label(class="form-label") }}
+                                {{ form.name(class="form-control") }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.duration.label(class="form-label") }}
+                                {{ form.duration(class="form-control") }}
+                                {% if form.duration.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.duration.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.duration_unit.label(class="form-label") }}
+                                {{ form.duration_unit(class="form-select") }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.price.label(class="form-label") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    {{ form.price(class="form-control") }}
+                                </div>
+                                {% if form.price.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.price.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.data_quota.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.data_quota(class="form-control", placeholder="Deixe vazio para ilimitado") }}
+                                    <span class="input-group-text">MB</span>
+                                </div>
+                                <small class="form-text text-muted">Deixe vazio para dados ilimitados</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.download_speed.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.download_speed(class="form-control", placeholder="Deixe vazio para não limitar") }}
+                                    <span class="input-group-text">Mbps</span>
+                                </div>
+                                <small class="form-text text-muted">Velocidade máxima de download</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.upload_speed.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.upload_speed(class="form-control", placeholder="Deixe vazio para não limitar") }}
+                                    <span class="input-group-text">Mbps</span>
+                                </div>
+                                <small class="form-text text-muted">Velocidade máxima de upload</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.is_active(class="form-check-input") }}
+                                    {{ form.is_active.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('manage_plans') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Voltar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            {% if plan %}Atualizar{% else %}Criar{% endif %} Plano
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if plan %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Estatísticas do Plano</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <h4 class="text-primary">{{ plan.total_vouchers or 0 }}</h4>
+                        <p class="text-muted">Vouchers Vendidos</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h4 class="text-success">R$ {{ plan.total_revenue|currency }}</h4>
+                        <p class="text-muted">Receita Total</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h4 class="text-info">{{ plan.created_at.strftime('%d/%m/%Y') }}</h4>
+                        <p class="text-muted">Data de Criação</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-format price input
+document.addEventListener('DOMContentLoaded', function() {
+    const priceInput = document.getElementById('price');
+    if (priceInput) {
+        priceInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^\d.,]/g, '');
+            e.target.value = value;
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,15 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Gerenciar Planos{% endblock %}
+{% block title %}Gerenciar Planos - {{ current_site.name }}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Gerenciar Planos</h1>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlanModal">
+            <div>
+                <h1>Gerenciar Planos</h1>
+                <small class="text-muted">Site: {{ current_site.name }}</small>
+            </div>
+            <a href="{{ url_for('create_plan') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Criar Plano
-            </button>
+            </a>
         </div>
     </div>
 </div>
@@ -29,15 +32,19 @@
                                     <th>Franquia</th>
                                     <th>Velocidade</th>
                                     <th>Status</th>
+                                    <th>Vouchers Vendidos</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for plan in plans %}
+                                {% for plan_data in plans %}
+                                {% set plan = plan_data[0] %}
+                                {% set total_vouchers = plan_data[1] or 0 %}
+                                {% set total_revenue = plan_data[2] or 0 %}
                                 <tr>
                                     <td>{{ plan.name }}</td>
-                                    <td>{{ plan.duration | duration(plan.duration_unit) }}</td>
-                                    <td>{{ plan.price | currency }}</td>
+                                    <td>{{ plan.duration|duration(plan.duration_unit) }}</td>
+                                    <td>R$ {{ plan.price|currency }}</td>
                                     <td>
                                         {% if plan.data_quota %}
                                             {{ plan.data_quota }} MB
@@ -46,10 +53,10 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if plan.download_speed %}
-                                            {{ plan.download_speed }}/{{ plan.upload_speed or plan.download_speed }} Mbps
+                                        {% if plan.download_speed or plan.upload_speed %}
+                                            ↓{{ plan.download_speed or 0 }} / ↑{{ plan.upload_speed or 0 }} Mbps
                                         {% else %}
-                                            Ilimitado
+                                            Não limitado
                                         {% endif %}
                                     </td>
                                     <td>
@@ -59,10 +66,23 @@
                                             <span class="badge bg-danger">Inativo</span>
                                         {% endif %}
                                     </td>
+                                    <td>{{ total_vouchers }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-secondary">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
+                                        <a href="{{ url_for('edit_plan', plan_id=plan.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i>Editar
+                                        </a>
+                                        {% if plan.is_active %}
+                                            <button class="btn btn-sm btn-outline-warning" 
+                                                    onclick="togglePlanStatus({{ plan.id }}, false)">
+                                                <i class="fas fa-ban me-1"></i>Desativar
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-success" 
+                                                    onclick="togglePlanStatus({{ plan.id }}, true)">
+                                                <i class="fas fa-check me-1"></i>Ativar
+                                            </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -70,97 +90,51 @@
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted">Nenhum plano encontrado.</p>
+                    <div class="text-center py-4">
+                        <i class="fas fa-list-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Nenhum plano encontrado para este site.</p>
+                        <a href="{{ url_for('create_plan') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Criar Primeiro Plano
+                        </a>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
-
-<!-- Create Plan Modal -->
-<div class="modal fade" id="createPlanModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Criar Plano</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('create_plan') }}">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Nome do Plano</label>
-                                <input type="text" class="form-control" name="name" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Preço (R$)</label>
-                                <input type="number" class="form-control" name="price" step="0.01" required>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Duração</label>
-                                <input type="number" class="form-control" name="duration" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Unidade</label>
-                                <select class="form-select" name="duration_unit" required>
-                                    <option value="minutes">Minutos</option>
-                                    <option value="hours">Horas</option>
-                                    <option value="days">Dias</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Franquia de Dados (MB)</label>
-                                <input type="number" class="form-control" name="data_quota" placeholder="Deixe em branco para ilimitado">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Velocidade Download (Mbps)</label>
-                                <input type="number" class="form-control" name="download_speed" placeholder="Deixe em branco para ilimitado">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Velocidade Upload (Mbps)</label>
-                                <input type="number" class="form-control" name="upload_speed" placeholder="Deixe em branco para usar mesma do download">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="is_active" id="isActive" checked>
-                                    <label class="form-check-label" for="isActive">
-                                        Plano Ativo
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Criar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+function togglePlanStatus(planId, status) {
+    const action = status ? 'ativar' : 'desativar';
+    if (confirm(`Tem certeza que deseja ${action} este plano?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/toggle_plan_status';
+        
+        const planIdInput = document.createElement('input');
+        planIdInput.type = 'hidden';
+        planIdInput.name = 'plan_id';
+        planIdInput.value = planId;
+        
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'status';
+        statusInput.value = status;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        
+        form.appendChild(planIdInput);
+        form.appendChild(statusInput);
+        form.appendChild(csrfToken);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %>

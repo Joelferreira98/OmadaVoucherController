@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Gerenciar Vendedores{% endblock %}
+{% block title %}Gerenciar Vendedores - {{ current_site.name }}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Gerenciar Vendedores</h1>
+            <div>
+                <h1>Gerenciar Vendedores</h1>
+                <small class="text-muted">Site: {{ current_site.name }}</small>
+            </div>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createVendorModal">
                 <i class="fas fa-plus me-2"></i>Criar Vendedor
             </button>
@@ -27,11 +30,16 @@
                                     <th>Email</th>
                                     <th>Data de Criação</th>
                                     <th>Status</th>
+                                    <th>Vouchers Criados</th>
+                                    <th>Receita Total</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for vendor in vendors %}
+                                {% for vendor_data in vendors %}
+                                {% set vendor = vendor_data[0] %}
+                                {% set total_vouchers = vendor_data[1] or 0 %}
+                                {% set total_revenue = vendor_data[2] or 0 %}
                                 <tr>
                                     <td>{{ vendor.username }}</td>
                                     <td>{{ vendor.email }}</td>
@@ -43,10 +51,20 @@
                                             <span class="badge bg-danger">Inativo</span>
                                         {% endif %}
                                     </td>
+                                    <td>{{ total_vouchers }}</td>
+                                    <td>R$ {{ total_revenue|currency }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-secondary">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
+                                        {% if vendor.is_active %}
+                                            <button class="btn btn-sm btn-outline-warning" 
+                                                    onclick="toggleVendorStatus({{ vendor.id }}, false)">
+                                                <i class="fas fa-ban me-1"></i>Desativar
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-success" 
+                                                    onclick="toggleVendorStatus({{ vendor.id }}, true)">
+                                                <i class="fas fa-check me-1"></i>Ativar
+                                            </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -54,7 +72,13 @@
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted">Nenhum vendedor encontrado.</p>
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Nenhum vendedor encontrado para este site.</p>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createVendorModal">
+                            <i class="fas fa-plus me-2"></i>Criar Primeiro Vendedor
+                        </button>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -87,13 +111,50 @@
                     </div>
                     
                     <input type="hidden" name="user_type" value="vendor">
+                    <input type="hidden" name="site_id" value="{{ current_site.id }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Criar</button>
+                    <button type="submit" class="btn btn-primary">Criar Vendedor</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleVendorStatus(vendorId, status) {
+    const action = status ? 'ativar' : 'desativar';
+    if (confirm(`Tem certeza que deseja ${action} este vendedor?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/toggle_vendor_status';
+        
+        const vendorIdInput = document.createElement('input');
+        vendorIdInput.type = 'hidden';
+        vendorIdInput.name = 'vendor_id';
+        vendorIdInput.value = vendorId;
+        
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'status';
+        statusInput.value = status;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = document.querySelector('[name=csrf_token]').value;
+        
+        form.appendChild(vendorIdInput);
+        form.appendChild(statusInput);
+        form.appendChild(csrfToken);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
 {% endblock %}

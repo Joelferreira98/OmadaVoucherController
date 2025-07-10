@@ -386,20 +386,6 @@ def admin_dashboard():
                          total_vouchers=total_vouchers,
                          total_revenue=total_revenue,
                          recent_vouchers=recent_vouchers)
-    total_vendors = VendorSite.query.filter_by(site_id=current_site_id).count()
-    total_plans = VoucherPlan.query.filter_by(site_id=current_site_id).count()
-    total_vouchers = VoucherGroup.query.filter_by(site_id=current_site_id).count()
-    
-    # Sales data for current month
-    start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    monthly_sales = generate_sales_report_data(current_site_id, start_of_month)
-    
-    return render_template('admin/dashboard.html', 
-                         site=site,
-                         total_vendors=total_vendors,
-                         total_plans=total_plans,
-                         total_vouchers=total_vouchers,
-                         monthly_sales=monthly_sales)
 
 @app.route('/admin/vendors')
 @login_required
@@ -408,15 +394,31 @@ def manage_vendors():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    current_site_id = session.get('current_site_id')
+    current_site_id = session.get('selected_site_id')
     if not current_site_id:
         return redirect(url_for('admin_site_selection'))
     
-    # Get vendors for current site
-    vendor_sites = VendorSite.query.filter_by(site_id=current_site_id).all()
-    vendors = [vs.vendor for vs in vendor_sites]
+    # Get current site
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
     
-    return render_template('admin/manage_vendors.html', vendors=vendors, current_site_id=current_site_id)
+    # Get vendors for current site with statistics
+    vendors = db.session.query(
+        User,
+        db.func.sum(VoucherGroup.quantity).label('total_vouchers'),
+        db.func.sum(VoucherGroup.total_value).label('total_revenue')
+    ).outerjoin(VendorSite, User.id == VendorSite.vendor_id)\
+     .outerjoin(VoucherGroup, User.id == VoucherGroup.created_by_id)\
+     .filter(VendorSite.site_id == current_site_id)\
+     .filter(User.user_type == 'vendor')\
+     .group_by(User.id)\
+     .all()
+    
+    return render_template('admin/manage_vendors.html', 
+                         vendors=vendors, 
+                         current_site=current_site)
 
 @app.route('/admin/create_vendor', methods=['POST'])
 @login_required
@@ -425,35 +427,86 @@ def create_vendor():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    current_site_id = session.get('current_site_id')
-    if not current_site_id:
-        return redirect(url_for('admin_site_selection'))
-    
-    form = UserForm()
-    if form.validate_on_submit():
+    try:
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        site_id = request.form.get('site_id')
+        
+        # Validate required fields
+        if not username or not email or not password or not site_id:
+            flash('Todos os campos são obrigatórios.', 'error')
+            return redirect(url_for('manage_vendors'))
+        
+        # Verify admin has access to this site
+        admin_site = AdminSite.query.filter_by(admin_id=current_user.id, site_id=site_id).first()
+        if not admin_site:
+            flash('Acesso negado ao site.', 'error')
+            return redirect(url_for('manage_vendors'))
+        
         # Check if username already exists
-        if User.query.filter_by(username=form.username.data).first():
+        if User.query.filter_by(username=username).first():
             flash('Usuário já existe.', 'error')
             return redirect(url_for('manage_vendors'))
         
-        user = User(
-            username=form.username.data,
-            email=form.email.data,
-            password_hash=generate_password_hash(form.password.data),
+        # Check if email already exists
+        if User.query.filter_by(email=email).first():
+            flash('Email já existe.', 'error')
+            return redirect(url_for('manage_vendors'))
+        
+        # Create vendor user
+        vendor = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
             user_type='vendor',
             is_active=True
         )
-        db.session.add(user)
-        db.session.flush()  # Get user ID
+        db.session.add(vendor)
+        db.session.flush()  # Get the vendor ID
         
-        # Assign vendor to current site
-        vendor_site = VendorSite(vendor_id=user.id, site_id=current_site_id)
+        # Assign vendor to site
+        vendor_site = VendorSite(vendor_id=vendor.id, site_id=site_id)
         db.session.add(vendor_site)
+        
         db.session.commit()
         
-        flash('Vendedor criado com sucesso.', 'success')
-    else:
+        flash(f'Vendedor {username} criado com sucesso.', 'success')
+        logging.info(f"New vendor {username} created by admin {current_user.username} for site {admin_site.site.name}")
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error creating vendor: {str(e)}")
         flash('Erro ao criar vendedor.', 'error')
+    
+    return redirect(url_for('manage_vendors'))
+
+@app.route('/admin/toggle_vendor_status', methods=['POST'])
+@login_required
+def toggle_vendor_status():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        vendor_id = request.form.get('vendor_id')
+        status = request.form.get('status') == 'true'
+        
+        vendor = User.query.get(vendor_id)
+        if not vendor or vendor.user_type != 'vendor':
+            flash('Vendedor não encontrado.', 'error')
+            return redirect(url_for('manage_vendors'))
+        
+        vendor.is_active = status
+        db.session.commit()
+        
+        action = 'ativado' if status else 'desativado'
+        flash(f'Vendedor {vendor.username} {action} com sucesso.', 'success')
+        logging.info(f"Vendor {vendor.username} {action} by admin {current_user.username}")
+        
+    except Exception as e:
+        logging.error(f"Error toggling vendor status: {str(e)}")
+        flash('Erro ao alterar status do vendedor.', 'error')
     
     return redirect(url_for('manage_vendors'))
 
@@ -464,72 +517,171 @@ def manage_plans():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    current_site_id = session.get('current_site_id')
+    current_site_id = session.get('selected_site_id')
     if not current_site_id:
         return redirect(url_for('admin_site_selection'))
     
-    plans = VoucherPlan.query.filter_by(site_id=current_site_id).all()
-    return render_template('admin/manage_plans.html', plans=plans)
+    # Get current site
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    # Get plans for current site with statistics
+    plans = db.session.query(
+        VoucherPlan,
+        db.func.sum(VoucherGroup.quantity).label('total_vouchers'),
+        db.func.sum(VoucherGroup.total_value).label('total_revenue')
+    ).outerjoin(VoucherGroup, VoucherPlan.id == VoucherGroup.plan_id)\
+     .filter(VoucherPlan.site_id == current_site_id)\
+     .group_by(VoucherPlan.id)\
+     .order_by(VoucherPlan.created_at.desc())\
+     .all()
+    
+    return render_template('admin/manage_plans.html', 
+                         plans=plans, 
+                         current_site=current_site)
 
-@app.route('/admin/create_plan', methods=['POST'])
+@app.route('/admin/create_plan', methods=['GET', 'POST'])
 @login_required
 def create_plan():
     if current_user.user_type != 'admin':
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    current_site_id = session.get('current_site_id')
+    current_site_id = session.get('selected_site_id')
     if not current_site_id:
         return redirect(url_for('admin_site_selection'))
     
-    form = VoucherPlanForm()
-    if form.validate_on_submit():
-        plan = VoucherPlan(
-            site_id=current_site_id,
-            name=form.name.data,
-            duration=form.duration.data,
-            duration_unit=form.duration_unit.data,
-            price=form.price.data,
-            data_quota=form.data_quota.data,
-            download_speed=form.download_speed.data,
-            upload_speed=form.upload_speed.data,
-            is_active=form.is_active.data
-        )
-        db.session.add(plan)
-        db.session.commit()
-        
-        flash('Plano criado com sucesso.', 'success')
-    else:
-        flash('Erro ao criar plano.', 'error')
+    # Get current site
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
     
-    return redirect(url_for('manage_plans'))
+    form = VoucherPlanForm()
+    
+    if form.validate_on_submit():
+        try:
+            plan = VoucherPlan(
+                site_id=current_site_id,
+                name=form.name.data,
+                duration=form.duration.data,
+                duration_unit=form.duration_unit.data,
+                price=form.price.data,
+                data_quota=form.data_quota.data if form.data_quota.data else None,
+                download_speed=form.download_speed.data if form.download_speed.data else None,
+                upload_speed=form.upload_speed.data if form.upload_speed.data else None,
+                is_active=form.is_active.data
+            )
+            
+            db.session.add(plan)
+            db.session.commit()
+            
+            flash(f'Plano {plan.name} criado com sucesso.', 'success')
+            logging.info(f"New plan {plan.name} created by admin {current_user.username} for site {current_site.name}")
+            return redirect(url_for('manage_plans'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating plan: {str(e)}")
+            flash('Erro ao criar plano.', 'error')
+    
+    return render_template('admin/create_plan.html', 
+                         form=form, 
+                         current_site=current_site,
+                         plan=None)
 
-@app.route('/admin/sales_reports')
+@app.route('/admin/edit_plan/<int:plan_id>', methods=['GET', 'POST'])
 @login_required
-def admin_sales_reports():
+def edit_plan(plan_id):
     if current_user.user_type != 'admin':
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    current_site_id = session.get('current_site_id')
+    current_site_id = session.get('selected_site_id')
     if not current_site_id:
         return redirect(url_for('admin_site_selection'))
     
-    # Get date range from request
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    # Get current site
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
     
-    if start_date:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d')
-    if end_date:
-        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    # Get plan and verify it belongs to current site
+    plan = VoucherPlan.query.filter_by(id=plan_id, site_id=current_site_id).first()
+    if not plan:
+        flash('Plano não encontrado.', 'error')
+        return redirect(url_for('manage_plans'))
     
-    sales_data = generate_sales_report_data(current_site_id, start_date, end_date)
+    form = VoucherPlanForm(obj=plan)
     
-    return render_template('admin/sales_reports.html', 
-                         sales_data=sales_data,
-                         start_date=start_date,
-                         end_date=end_date)
+    if form.validate_on_submit():
+        try:
+            plan.name = form.name.data
+            plan.duration = form.duration.data
+            plan.duration_unit = form.duration_unit.data
+            plan.price = form.price.data
+            plan.data_quota = form.data_quota.data if form.data_quota.data else None
+            plan.download_speed = form.download_speed.data if form.download_speed.data else None
+            plan.upload_speed = form.upload_speed.data if form.upload_speed.data else None
+            plan.is_active = form.is_active.data
+            
+            db.session.commit()
+            
+            flash(f'Plano {plan.name} atualizado com sucesso.', 'success')
+            logging.info(f"Plan {plan.name} updated by admin {current_user.username}")
+            return redirect(url_for('manage_plans'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating plan: {str(e)}")
+            flash('Erro ao atualizar plano.', 'error')
+    
+    # Get plan statistics
+    plan.total_vouchers = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
+        VoucherGroup.plan_id == plan.id
+    ).scalar() or 0
+    
+    plan.total_revenue = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
+        VoucherGroup.plan_id == plan.id
+    ).scalar() or 0
+    
+    return render_template('admin/create_plan.html', 
+                         form=form, 
+                         current_site=current_site,
+                         plan=plan)
+
+@app.route('/admin/toggle_plan_status', methods=['POST'])
+@login_required
+def toggle_plan_status():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        plan_id = request.form.get('plan_id')
+        status = request.form.get('status') == 'true'
+        current_site_id = session.get('selected_site_id')
+        
+        plan = VoucherPlan.query.filter_by(id=plan_id, site_id=current_site_id).first()
+        if not plan:
+            flash('Plano não encontrado.', 'error')
+            return redirect(url_for('manage_plans'))
+        
+        plan.is_active = status
+        db.session.commit()
+        
+        action = 'ativado' if status else 'desativado'
+        flash(f'Plano {plan.name} {action} com sucesso.', 'success')
+        logging.info(f"Plan {plan.name} {action} by admin {current_user.username}")
+        
+    except Exception as e:
+        logging.error(f"Error toggling plan status: {str(e)}")
+        flash('Erro ao alterar status do plano.', 'error')
+    
+    return redirect(url_for('manage_plans'))
 
 # Vendor Routes
 @app.route('/vendor')
@@ -539,100 +691,52 @@ def vendor_dashboard():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    # Get vendor's site
     vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
     if not vendor_site:
-        flash('Nenhum site atribuído. Contate o administrador.', 'error')
-        return redirect(url_for('login'))
-    
-    # Get statistics
-    total_vouchers = VoucherGroup.query.filter_by(
-        site_id=vendor_site.site_id,
-        created_by_id=current_user.id
-    ).count()
-    
-    # Sales data for current month
-    start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    monthly_sales = generate_sales_report_data(vendor_site.site_id, start_of_month)
-    
-    # Filter only current vendor's sales
-    vendor_monthly_sales = 0
-    for vg in monthly_sales['voucher_groups']:
-        if vg.created_by_id == current_user.id:
-            vendor_monthly_sales += vg.total_value
-    
-    return render_template('vendor/dashboard.html', 
-                         site=vendor_site.site,
-                         total_vouchers=total_vouchers,
-                         monthly_sales=vendor_monthly_sales)
-
-@app.route('/vendor/create_vouchers')
-@login_required
-def create_vouchers():
-    if current_user.user_type != 'vendor':
-        flash('Acesso negado.', 'error')
+        flash('Nenhum site atribuído.', 'error')
         return redirect(url_for('dashboard'))
     
-    # Get vendor's site
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
-    if not vendor_site:
-        flash('Nenhum site atribuído. Contate o administrador.', 'error')
-        return redirect(url_for('login'))
-    
-    # Get available plans
+    # Get available plans for this site
     plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
     
-    return render_template('vendor/create_vouchers.html', plans=plans, site=vendor_site.site)
+    # Get vendor statistics
+    total_vouchers = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
+        VoucherGroup.created_by_id == current_user.id
+    ).scalar() or 0
+    
+    total_revenue = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
+        VoucherGroup.created_by_id == current_user.id
+    ).scalar() or 0
+    
+    recent_vouchers = VoucherGroup.query.filter_by(created_by_id=current_user.id).order_by(
+        VoucherGroup.created_at.desc()
+    ).limit(10).all()
+    
+    return render_template('vendor/dashboard.html',
+                         site=vendor_site.site,
+                         plans=plans,
+                         total_vouchers=total_vouchers,
+                         total_revenue=total_revenue,
+                         recent_vouchers=recent_vouchers)
 
-@app.route('/vendor/generate_vouchers', methods=['POST'])
-@login_required
-def generate_vouchers():
-    if current_user.user_type != 'vendor':
-        flash('Acesso negado.', 'error')
-        return redirect(url_for('dashboard'))
-    
-    # Get vendor's site
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
-    if not vendor_site:
-        flash('Nenhum site atribuído. Contate o administrador.', 'error')
-        return redirect(url_for('login'))
-    
-    form = VoucherGenerationForm()
-    if form.validate_on_submit():
-        plan = VoucherPlan.query.get(form.plan_id.data)
-        if not plan or plan.site_id != vendor_site.site_id:
-            flash('Plano inválido.', 'error')
-            return redirect(url_for('create_vouchers'))
-        
-        # Generate voucher codes (simple implementation)
-        import random
-        import string
-        
-        voucher_codes = []
-        for _ in range(form.quantity.data):
-            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-            voucher_codes.append(code)
-        
-        # Create voucher group
-        voucher_group = VoucherGroup(
-            site_id=vendor_site.site_id,
-            plan_id=plan.id,
-            created_by_id=current_user.id,
-            quantity=form.quantity.data,
-            voucher_codes=voucher_codes,
-            total_value=plan.price * form.quantity.data
-        )
-        
-        db.session.add(voucher_group)
-        db.session.commit()
-        
-        flash(f'{form.quantity.data} vouchers gerados com sucesso.', 'success')
-        return redirect(url_for('voucher_history'))
-    
-    flash('Erro ao gerar vouchers.', 'error')
-    return redirect(url_for('create_vouchers'))
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return render_template('errors/404.html'), 404
 
-@app.route('/vendor/voucher_history')
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('errors/500.html'), 500
+
+# Template filters
+@app.template_filter('currency')
+def currency_filter(value):
+    return format_currency(value or 0)
+
+@app.template_filter('duration')
+def duration_filter(value, unit):
+    return format_duration(value, unit)
 @login_required
 def voucher_history():
     if current_user.user_type != 'vendor':
