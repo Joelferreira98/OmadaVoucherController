@@ -142,14 +142,19 @@ elif [ "$DB_CHOICE" = "2" ]; then
     
     DATABASE_URL="mysql+pymysql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
     
-    # Teste de conexão
+    # Teste de conexão (opcional)
     echo "Testando conexão com banco remoto..."
     if command -v mysql &> /dev/null; then
+        set +e  # Desabilitar parada em erro temporariamente
         mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "SELECT 1;" &>/dev/null
-        if [ $? -eq 0 ]; then
+        CONNECTION_STATUS=$?
+        set -e  # Reabilitar parada em erro
+        
+        if [ $CONNECTION_STATUS -eq 0 ]; then
             echo "✓ Conexão com banco remoto bem-sucedida!"
         else
-            echo "⚠️  Não foi possível testar a conexão. Continuando mesmo assim..."
+            echo "⚠️  Não foi possível conectar ao banco. Continuando mesmo assim..."
+            echo "   (A aplicação tentará conectar novamente durante a inicialização)"
         fi
     else
         echo "ℹ️  Cliente MySQL não disponível para teste. Continuando..."
@@ -172,14 +177,19 @@ elif [ "$DB_CHOICE" = "3" ]; then
     
     DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
     
-    # Teste de conexão
+    # Teste de conexão (opcional)
     echo "Testando conexão com PostgreSQL remoto..."
     if command -v psql &> /dev/null; then
+        set +e  # Desabilitar parada em erro temporariamente
         PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" &>/dev/null
-        if [ $? -eq 0 ]; then
+        CONNECTION_STATUS=$?
+        set -e  # Reabilitar parada em erro
+        
+        if [ $CONNECTION_STATUS -eq 0 ]; then
             echo "✓ Conexão com PostgreSQL remoto bem-sucedida!"
         else
-            echo "⚠️  Não foi possível testar a conexão. Continuando mesmo assim..."
+            echo "⚠️  Não foi possível conectar ao banco. Continuando mesmo assim..."
+            echo "   (A aplicação tentará conectar novamente durante a inicialização)"
         fi
     else
         echo "ℹ️  Cliente PostgreSQL não disponível para teste. Continuando..."
