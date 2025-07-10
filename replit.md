@@ -87,6 +87,21 @@ Preferred communication style: Simple, everyday language.
 - **New Database Model**: CashRegister for comprehensive financial tracking
 - **New API Integration**: delete_expired_vouchers endpoint for cleanup operations
 
+### Individual Voucher Sales Reporting (July 10, 2025)
+- **Major Change**: Sales reports now show individual vouchers instead of voucher groups
+- **Implementation**:
+  - Both admin and vendor sales reports fetch individual voucher data from Omada Controller
+  - Only vouchers with status "expired" or "in-use" are considered "sold"
+  - Reports display actual voucher codes, individual status, and precise revenue calculation
+  - Real-time data integration directly from Omada Controller API
+  - Detailed voucher-level tracking replaces group-based reporting
+- **Benefits**:
+  - Accurate revenue tracking based on actual voucher usage
+  - Individual voucher code visibility for customer support
+  - Real-time status monitoring (Em Uso vs Expirado)
+  - Precise audit trail for financial reporting
+  - Enhanced CSV export with individual voucher details
+
 ## System Architecture
 
 ### Backend Architecture

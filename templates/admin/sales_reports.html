@@ -52,24 +52,25 @@
     <div class="col-md-6">
         <div class="card text-center">
             <div class="card-body">
-                <h3 class="text-primary">{{ total_vouchers }}</h3>
-                <p class="text-muted">Total de Vouchers</p>
+                <h3 class="text-primary">{{ total_sold_vouchers }}</h3>
+                <p class="text-muted">Vouchers Vendidos</p>
+                <small class="text-muted">(Em uso + Expirados)</small>
             </div>
         </div>
     </div>
     <div class="col-md-6">
         <div class="card text-center">
             <div class="card-body">
-                <h3 class="text-success">R$ {{ total_revenue|currency }}</h3>
+                <h3 class="text-success">R$ {{ "%.2f"|format(total_revenue)|replace('.', ',') }}</h3>
                 <p class="text-muted">Receita Total</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Vendas por Vendedor -->
+<!-- Estatísticas por Vendedor e Plano -->
 <div class="row mb-4">
-    <div class="col-12">
+    <div class="col-md-6">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">Vendas por Vendedor</h5>
@@ -77,21 +78,21 @@
             <div class="card-body">
                 {% if vendor_stats %}
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-striped table-sm">
                             <thead>
                                 <tr>
                                     <th>Vendedor</th>
-                                    <th>Vouchers Vendidos</th>
+                                    <th>Vouchers</th>
                                     <th>Receita</th>
-                                    <th>% do Total</th>
+                                    <th>%</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for vendor_id, stats in vendor_stats.items() %}
+                                {% for vendor_name, stats in vendor_stats.items() %}
                                 <tr>
-                                    <td>{{ stats.vendor.username }}</td>
-                                    <td>{{ stats.vouchers }}</td>
-                                    <td>R$ {{ stats.revenue|currency }}</td>
+                                    <td>{{ stats.vendor_name }}</td>
+                                    <td><span class="badge bg-primary">{{ stats.vouchers }}</span></td>
+                                    <td><strong>R$ {{ "%.2f"|format(stats.revenue)|replace('.', ',') }}</strong></td>
                                     <td>
                                         {% if total_revenue > 0 %}
                                             {{ "%.1f"|format((stats.revenue / total_revenue) * 100) }}%
@@ -105,46 +106,41 @@
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted text-center">Nenhuma venda encontrada no período.</p>
+                    <p class="text-muted text-center">Nenhuma venda encontrada.</p>
                 {% endif %}
             </div>
         </div>
     </div>
-</div>
-
-<!-- Histórico Detalhado -->
-<div class="row">
-    <div class="col-12">
+    
+    <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Histórico Detalhado</h5>
+                <h5 class="mb-0">Vendas por Plano</h5>
             </div>
             <div class="card-body">
-                {% if voucher_groups %}
+                {% if plan_stats %}
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-striped table-sm">
                             <thead>
                                 <tr>
-                                    <th>Data</th>
-                                    <th>Vendedor</th>
                                     <th>Plano</th>
-                                    <th>Quantidade</th>
-                                    <th>Valor Total</th>
-                                    <th>Status</th>
+                                    <th>Vouchers</th>
+                                    <th>Receita</th>
+                                    <th>%</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for vg in voucher_groups %}
+                                {% for plan_name, stats in plan_stats.items() %}
                                 <tr>
-                                    <td>{{ vg.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td>{{ vg.created_by.username }}</td>
-                                    <td>{{ vg.plan.name }}</td>
-                                    <td>{{ vg.quantity }}</td>
-                                    <td>R$ {{ vg.total_value|currency }}</td>
+                                    <td>{{ stats.plan_name }}</td>
+                                    <td><span class="badge bg-info">{{ stats.vouchers }}</span></td>
+                                    <td><strong>R$ {{ "%.2f"|format(stats.revenue)|replace('.', ',') }}</strong></td>
                                     <td>
-                                        <span class="badge bg-{{ 'success' if vg.status == 'active' else 'secondary' }}">
-                                            {{ vg.status.title() }}
-                                        </span>
+                                        {% if total_revenue > 0 %}
+                                            {{ "%.1f"|format((stats.revenue / total_revenue) * 100) }}%
+                                        {% else %}
+                                            0.0%
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -152,13 +148,108 @@
                         </table>
                     </div>
                 {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Nenhuma venda encontrada no período selecionado.</p>
+                    <p class="text-muted text-center">Nenhuma venda encontrada.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vouchers Vendidos (Individual) -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Vouchers Vendidos (Expirados e Em Uso)</h5>
+            </div>
+            <div class="card-body">
+                {% if sold_vouchers %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Plano</th>
+                                    <th>Vendedor</th>
+                                    <th>Status</th>
+                                    <th>Valor</th>
+                                    <th>Data Criação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for voucher in sold_vouchers %}
+                                <tr>
+                                    <td>
+                                        <code class="text-primary">{{ voucher.code }}</code>
+                                    </td>
+                                    <td>
+                                        <strong>{{ voucher.plan_name }}</strong>
+                                    </td>
+                                    <td>{{ voucher.created_by }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ voucher.status_class }}">
+                                            {{ voucher.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong>R$ {{ "%.2f"|format(voucher.plan_price)|replace('.', ',') }}</strong>
+                                    </td>
+                                    <td>{{ voucher.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <small class="text-muted">
+                            Mostrando {{ sold_vouchers|length }} voucher(s) vendido(s)
+                        </small>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" onclick="exportTableToCSV('vouchers-table', 'vouchers-vendidos.csv')">
+                                <i class="fas fa-download"></i> Exportar CSV
+                            </button>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhum voucher vendido</h5>
+                        <p class="text-muted">Não há vouchers expirados ou em uso no período selecionado.</p>
                     </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function exportTableToCSV(tableId, filename) {
+    const table = document.querySelector('table');
+    const rows = Array.from(table.querySelectorAll('tr'));
+    const csv = rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('th, td'));
+        return cells.map(cell => {
+            let text = cell.textContent.trim();
+            // Remove extra whitespace and clean up
+            text = text.replace(/\s+/g, ' ');
+            // Wrap in quotes if contains comma or quote
+            if (text.includes(',') || text.includes('"')) {
+                text = '"' + text.replace(/"/g, '""') + '"';
+            }
+            return text;
+        }).join(',');
+    }).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
 {% endblock %}

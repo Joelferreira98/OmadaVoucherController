@@ -702,7 +702,7 @@ def toggle_plan_status():
     
     return redirect(url_for('manage_plans'))
 
-# Sales Reports
+# Sales Reports - Individual Vouchers
 @app.route('/admin/sales_reports')
 @login_required
 def admin_sales_reports():
@@ -729,7 +729,7 @@ def admin_sales_reports():
     if end_date:
         end_date = datetime.strptime(end_date, '%Y-%m-%d')
     
-    # Get sales data
+    # Get voucher groups first
     query = VoucherGroup.query.filter_by(site_id=current_site_id)
     
     if start_date:
@@ -739,28 +739,77 @@ def admin_sales_reports():
     
     voucher_groups = query.order_by(VoucherGroup.created_at.desc()).all()
     
-    # Calculate totals
-    total_vouchers = sum(vg.quantity for vg in voucher_groups)
-    total_revenue = sum(vg.total_value for vg in voucher_groups)
+    # Get individual voucher data from Omada Controller
+    sold_vouchers = []  # Vouchers that are expired or in-use
+    from omada_api import omada_api
+    
+    try:
+        for vg in voucher_groups:
+            if vg.omada_group_id:
+                # Get detailed voucher data from Omada Controller
+                group_details = omada_api.get_voucher_group_detail(current_site.site_id, vg.omada_group_id)
+                
+                if group_details and group_details.get('errorCode') == 0:
+                    voucher_data_list = group_details.get('result', {}).get('data', [])
+                    
+                    for voucher in voucher_data_list:
+                        # Only include vouchers that are expired or in-use (sold)
+                        status = voucher.get('status', 0)
+                        if status in [2, 3]:  # 2 = in-use, 3 = expired
+                            sold_vouchers.append({
+                                'code': voucher.get('code', 'N/A'),
+                                'status': 'Em Uso' if status == 2 else 'Expirado',
+                                'status_class': 'warning' if status == 2 else 'danger',
+                                'plan_name': vg.plan.name,
+                                'plan_price': vg.plan.price,
+                                'created_by': vg.created_by.username,
+                                'created_at': vg.created_at,
+                                'group_id': vg.id,
+                                'usage_time': voucher.get('usageTime', 0) if status == 2 else voucher.get('duration', 0),
+                                'start_time': voucher.get('startTime'),
+                                'end_time': voucher.get('endTime')
+                            })
+    
+    except Exception as e:
+        logging.error(f"Error fetching individual voucher data: {str(e)}")
+        flash('Erro ao carregar dados dos vouchers do Omada Controller.', 'warning')
+    
+    # Calculate totals based on sold vouchers
+    total_sold_vouchers = len(sold_vouchers)
+    total_revenue = sum(voucher['plan_price'] for voucher in sold_vouchers)
     
     # Group by vendor
     vendor_stats = {}
-    for vg in voucher_groups:
-        vendor_id = vg.created_by_id
-        if vendor_id not in vendor_stats:
-            vendor_stats[vendor_id] = {
-                'vendor': vg.created_by,
+    for voucher in sold_vouchers:
+        vendor_name = voucher['created_by']
+        if vendor_name not in vendor_stats:
+            vendor_stats[vendor_name] = {
+                'vendor_name': vendor_name,
                 'vouchers': 0,
-                'revenue': 0
+                'revenue': 0.0
             }
-        vendor_stats[vendor_id]['vouchers'] += vg.quantity
-        vendor_stats[vendor_id]['revenue'] += vg.total_value
+        vendor_stats[vendor_name]['vouchers'] += 1
+        vendor_stats[vendor_name]['revenue'] += voucher['plan_price']
+    
+    # Group by plan
+    plan_stats = {}
+    for voucher in sold_vouchers:
+        plan_name = voucher['plan_name']
+        if plan_name not in plan_stats:
+            plan_stats[plan_name] = {
+                'plan_name': plan_name,
+                'vouchers': 0,
+                'revenue': 0.0
+            }
+        plan_stats[plan_name]['vouchers'] += 1
+        plan_stats[plan_name]['revenue'] += voucher['plan_price']
     
     return render_template('admin/sales_reports.html',
                          current_site=current_site,
-                         voucher_groups=voucher_groups,
+                         sold_vouchers=sold_vouchers,
                          vendor_stats=vendor_stats,
-                         total_vouchers=total_vouchers,
+                         plan_stats=plan_stats,
+                         total_sold_vouchers=total_sold_vouchers,
                          total_revenue=total_revenue,
                          start_date=start_date,
                          end_date=end_date)
@@ -1536,47 +1585,73 @@ def vendor_sales_reports():
             VoucherGroup.created_at <= end_dt
         ).all()
         
-        # Calculate totals based on actual sales (expired + used vouchers)
-        total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
-        total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) for vg in voucher_groups)
-        total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0)) * vg.plan.price for vg in voucher_groups)
+        # Get individual voucher data from Omada Controller
+        sold_vouchers = []  # Vouchers that are expired or in-use
+        from omada_api import omada_api
         
-        # Group by plan - only count sold vouchers
+        try:
+            for vg in voucher_groups:
+                if vg.omada_group_id:
+                    # Get detailed voucher data from Omada Controller
+                    group_details = omada_api.get_voucher_group_detail(vendor_site.site.site_id, vg.omada_group_id)
+                    
+                    if group_details and group_details.get('errorCode') == 0:
+                        voucher_data_list = group_details.get('result', {}).get('data', [])
+                        
+                        for voucher in voucher_data_list:
+                            # Only include vouchers that are expired or in-use (sold)
+                            status = voucher.get('status', 0)
+                            if status in [2, 3]:  # 2 = in-use, 3 = expired
+                                sold_vouchers.append({
+                                    'code': voucher.get('code', 'N/A'),
+                                    'status': 'Em Uso' if status == 2 else 'Expirado',
+                                    'status_class': 'warning' if status == 2 else 'danger',
+                                    'plan_name': vg.plan.name,
+                                    'plan_price': vg.plan.price,
+                                    'created_at': vg.created_at,
+                                    'group_id': vg.id,
+                                    'usage_time': voucher.get('usageTime', 0) if status == 2 else voucher.get('duration', 0),
+                                    'start_time': voucher.get('startTime'),
+                                    'end_time': voucher.get('endTime')
+                                })
+        
+        except Exception as e:
+            logging.error(f"Error fetching individual voucher data for vendor: {str(e)}")
+            flash('Erro ao carregar dados dos vouchers do Omada Controller.', 'warning')
+        
+        # Calculate totals based on sold vouchers
+        total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
+        total_vouchers_sold = len(sold_vouchers)
+        total_revenue = sum(voucher['plan_price'] for voucher in sold_vouchers)
+        
+        # Group by plan
         plan_stats = {}
-        for vg in voucher_groups:
-            plan_name = vg.plan.name
-            sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
-            
+        for voucher in sold_vouchers:
+            plan_name = voucher['plan_name']
             if plan_name not in plan_stats:
                 plan_stats[plan_name] = {
-                    'quantity_generated': 0,
-                    'quantity_sold': 0,
-                    'revenue': 0,
-                    'plan_price': vg.plan.price
+                    'plan_name': plan_name,
+                    'vouchers': 0,
+                    'revenue': 0.0
                 }
-            plan_stats[plan_name]['quantity_generated'] += vg.quantity
-            plan_stats[plan_name]['quantity_sold'] += sold_vouchers
-            plan_stats[plan_name]['revenue'] += sold_vouchers * vg.plan.price
+            plan_stats[plan_name]['vouchers'] += 1
+            plan_stats[plan_name]['revenue'] += voucher['plan_price']
         
-        # Group by date - only count sold vouchers
+        # Group by date
         date_stats = {}
-        for vg in voucher_groups:
-            date_key = vg.created_at.strftime('%Y-%m-%d')
-            sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
-            
+        for voucher in sold_vouchers:
+            date_key = voucher['created_at'].strftime('%Y-%m-%d')
             if date_key not in date_stats:
                 date_stats[date_key] = {
-                    'quantity_generated': 0,
-                    'quantity_sold': 0,
-                    'revenue': 0
+                    'vouchers': 0,
+                    'revenue': 0.0
                 }
-            date_stats[date_key]['quantity_generated'] += vg.quantity
-            date_stats[date_key]['quantity_sold'] += sold_vouchers
-            date_stats[date_key]['revenue'] += sold_vouchers * vg.plan.price
+            date_stats[date_key]['vouchers'] += 1
+            date_stats[date_key]['revenue'] += voucher['plan_price']
         
         return render_template('vendor/sales_reports.html',
                              site=vendor_site.site,
-                             voucher_groups=voucher_groups,
+                             sold_vouchers=sold_vouchers,
                              total_vouchers_generated=total_vouchers_generated,
                              total_vouchers_sold=total_vouchers_sold,
                              total_revenue=total_revenue,
