@@ -3,55 +3,72 @@
 {% block title %}Login - Sistema de Vouchers{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
-            <div class="card-body">
-                <div class="text-center mb-4">
-                    <i class="fas fa-wifi fa-3x text-primary mb-3"></i>
-                    <h4>Sistema de Vouchers</h4>
-                    <p class="text-muted">Faça login para continuar</p>
-                </div>
-                
-                <form method="POST">
-                    {{ form.hidden_tag() }}
-                    
-                    <div class="mb-3">
-                        {{ form.username.label(class="form-label") }}
-                        {{ form.username(class="form-control") }}
-                        {% if form.username.errors %}
-                            <div class="text-danger small">
-                                {% for error in form.username.errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
+<div class="d-flex align-items-center justify-content-center min-vh-100 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <div class="mb-3">
+                                <div class="bg-dark rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                                    <i class="fas fa-wifi fa-2x text-white"></i>
+                                </div>
                             </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        {{ form.password.label(class="form-label") }}
-                        {{ form.password(class="form-control") }}
-                        {% if form.password.errors %}
-                            <div class="text-danger small">
-                                {% for error in form.password.errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
+                            <h3 class="fw-bold text-dark mb-2">Sistema de Vouchers</h3>
+                            <p class="text-muted mb-0">Acesse sua conta para continuar</p>
+                        </div>
+                        
+                        <form method="POST">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                {{ form.username.label(class="form-label text-muted fw-medium small") }}
+                                {{ form.username(class="form-control form-control-lg border-0 bg-light") }}
+                                {% if form.username.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.username.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
-                        {% endif %}
+                            
+                            <div class="mb-4">
+                                {{ form.password.label(class="form-label text-muted fw-medium small") }}
+                                {{ form.password(class="form-control form-control-lg border-0 bg-light") }}
+                                {% if form.password.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.password.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-grid mb-4">
+                                <button type="submit" class="btn btn-dark btn-lg py-3 fw-medium">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Entrar
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div class="text-center">
+                            <div class="bg-light rounded p-3">
+                                <small class="text-muted d-block mb-1">Dados padrão para teste:</small>
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <strong class="text-dark small">master</strong>
+                                        <div class="text-muted" style="font-size: 11px;">usuário</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <strong class="text-dark small">admin123</strong>
+                                        <div class="text-muted" style="font-size: 11px;">senha</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-sign-in-alt me-2"></i>Entrar
-                        </button>
-                    </div>
-                </form>
-                
-                <div class="text-center mt-4">
-                    <small class="text-muted">
-                        Usuário padrão: <strong>master</strong><br>
-                        Senha padrão: <strong>admin123</strong>
-                    </small>
                 </div>
             </div>
         </div>

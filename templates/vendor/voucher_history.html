@@ -3,76 +3,82 @@
 {% block title %}Histórico de Vouchers - {{ site.name }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1>Histórico de Vouchers</h1>
-                <small class="text-muted">Site: {{ site.name }}</small>
-            </div>
-            <div>
-                <a href="{{ url_for('create_vouchers') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Gerar Novos Vouchers
-                </a>
-                <a href="{{ url_for('vendor_dashboard') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Voltar ao Dashboard
-                </a>
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Histórico de Vouchers</h1>
+                    <p class="text-muted mb-0 mt-1">{{ site.name }}</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('vendor_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Voltar
+                    </a>
+                    <a href="{{ url_for('create_vouchers') }}" class="btn btn-dark btn-sm">
+                        <i class="fas fa-plus me-1"></i>Gerar Vouchers
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Statistics Summary -->
-<div class="row mb-4">
-    <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-ticket-alt fa-2x text-primary mb-2"></i>
-                <h5 class="text-primary">{{ total_vouchers_generated }}</h5>
-                <p class="text-muted mb-0">Vouchers Gerados</p>
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-ticket-alt fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                    <h4 class="fw-bold text-dark mb-1">{{ total_vouchers_generated }}</h4>
+                    <p class="text-muted mb-0 small">Vouchers Gerados</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-check-circle fa-2x text-success"></i>
+                        </div>
+                    </div>
+                    <h4 class="fw-bold text-dark mb-1">{{ total_vouchers_sold }}</h4>
+                    <p class="text-muted mb-0 small">Vouchers Vendidos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                        </div>
+                    </div>
+                    <h4 class="fw-bold text-success mb-1">R$ {{ "%.2f"|format(total_revenue or 0)|replace('.', ',') }}</h4>
+                    <p class="text-muted mb-0 small">Receita Efetiva</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-3">
+                        <a href="{{ url_for('sync_voucher_status', site_id=site.id) }}" class="btn btn-outline-warning rounded-circle" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-sync-alt fa-2x"></i>
+                        </a>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-1">Sincronizar</h6>
+                    <p class="text-muted mb-0 small">Atualizar Status</p>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                <h5 class="text-success">{{ total_vouchers_sold }}</h5>
-                <p class="text-muted mb-0">Vouchers Vendidos</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-dollar-sign fa-2x text-success mb-2"></i>
-                <h4 class="text-success">R$ {{ total_revenue|currency }}</h4>
-                <p class="text-muted mb-0">Receita Efetiva</p>
-                <small class="text-muted">Apenas vouchers vendidos</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-layer-group fa-2x text-info mb-2"></i>
-                <h5 class="text-info">{{ total_groups }}</h5>
-                <p class="text-muted mb-0">Grupos</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <i class="fas fa-sync-alt fa-2x text-warning mb-2"></i>
-                <a href="{{ url_for('sync_voucher_status', site_id=site.id) }}" class="btn btn-warning btn-sm">
-                    <i class="fas fa-sync-alt me-1"></i>Sincronizar Status
-                </a>
-                <p class="text-muted mb-0 mt-2">Atualizar dados do Omada</p>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Filter and Search -->
 <div class="row mb-4">

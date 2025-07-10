@@ -3,150 +3,172 @@
 {% block title %}Dashboard - {{ current_site.name }}{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1>Dashboard - {{ current_site.name }}</h1>
-                <small class="text-muted">
-                    <i class="fas fa-map-marker-alt me-1"></i>{{ current_site.region or 'Não especificado' }}
-                    {% if current_site.timezone %}
-                        | <i class="fas fa-clock me-1"></i>{{ current_site.timezone }}
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">{{ current_site.name }}</h1>
+                    <p class="text-muted mb-0 mt-1">
+                        <i class="fas fa-map-marker-alt me-1"></i>{{ current_site.region or 'Não especificado' }}
+                        {% if current_site.timezone %}
+                            <span class="mx-2">•</span><i class="fas fa-clock me-1"></i>{{ current_site.timezone }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    {% if admin_sites|length > 1 %}
+                        <a href="{{ url_for('admin_site_selection') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-exchange-alt me-1"></i>Trocar Site
+                        </a>
                     {% endif %}
-                </small>
-            </div>
-            <div>
-                {% if admin_sites|length > 1 %}
-                    <a href="{{ url_for('admin_site_selection') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-exchange-alt me-2"></i>Trocar Site
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i>Sair
                     </a>
-                {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">
-                    <i class="fas fa-sign-out-alt me-2"></i>Sair
-                </a>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>{{ total_vendors }}</h4>
-                        <p class="mb-0">Vendedores</p>
+    <!-- KPI Cards -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-users fa-2x text-primary opacity-75"></i>
                     </div>
-                    <div>
-                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    <h2 class="fw-bold text-dark mb-1">{{ total_vendors }}</h2>
+                    <p class="text-muted mb-0 small">Vendedores</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-list-alt fa-2x text-success opacity-75"></i>
                     </div>
+                    <h2 class="fw-bold text-dark mb-1">{{ total_plans }}</h2>
+                    <p class="text-muted mb-0 small">Planos Ativos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-ticket-alt fa-2x text-info opacity-75"></i>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-1">{{ total_vouchers_generated }}</h2>
+                    <p class="text-muted mb-0 small">Vouchers Gerados</p>
+                    <small class="text-muted opacity-75">{{ total_vouchers_sold }} vendidos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-dollar-sign fa-2x text-warning opacity-75"></i>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-1">R$ {{ "%.2f"|format(total_revenue)|replace('.', ',') }}</h2>
+                    <p class="text-muted mb-0 small">Receita Total</p>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>{{ total_plans }}</h4>
-                        <p class="mb-0">Planos Ativos</p>
-                    </div>
-                    <div>
-                        <i class="fas fa-list-alt fa-2x opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>{{ total_vouchers_generated }}</h4>
-                        <p class="mb-0">Vouchers Gerados</p>
-                        <small class="opacity-75">{{ total_vouchers_sold }} vendidos</small>
-                    </div>
-                    <div>
-                        <i class="fas fa-ticket-alt fa-2x opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h4>R$ {{ total_revenue|currency }}</h4>
-                        <p class="mb-0">Receita Total</p>
-                    </div>
-                    <div>
-                        <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Quick Actions -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Ações Rápidas</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <a href="{{ url_for('manage_vendors') }}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="fas fa-users me-2"></i>Gerenciar Vendedores
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('manage_plans') }}" class="btn btn-outline-success w-100 mb-2">
-                            <i class="fas fa-list-alt me-2"></i>Gerenciar Planos
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('admin_create_vouchers') }}" class="btn btn-outline-info w-100 mb-2">
-                            <i class="fas fa-ticket-alt me-2"></i>Criar Vouchers
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('cash_register') }}" class="btn btn-outline-warning w-100 mb-2">
-                            <i class="fas fa-cash-register me-2"></i>Controle de Caixa
-                        </a>
-                    </div>
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-0">Ações Rápidas</h6>
                 </div>
-                <div class="row">
-                    <div class="col-md-3">
-                        <a href="{{ url_for('admin_voucher_history') }}" class="btn btn-outline-secondary w-100 mb-2">
-                            <i class="fas fa-history me-2"></i>Histórico Vouchers
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('admin_sales_reports') }}" class="btn btn-outline-dark w-100 mb-2">
-                            <i class="fas fa-chart-bar me-2"></i>Relatórios de Vendas
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('create_plan') }}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="fas fa-plus me-2"></i>Criar Plano
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('cash_register_history') }}" class="btn btn-outline-success w-100 mb-2">
-                            <i class="fas fa-file-invoice-dollar me-2"></i>Histórico Caixa
-                        </a>
+                <div class="card-body pt-2">
+                    <div class="row g-3">
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('manage_vendors') }}" class="btn btn-outline-dark w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-users text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Gerenciar Vendedores</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('manage_plans') }}" class="btn btn-outline-dark w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-list-alt text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Gerenciar Planos</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('admin_create_vouchers') }}" class="btn btn-outline-dark w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-ticket-alt text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Criar Vouchers</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('cash_register') }}" class="btn btn-outline-dark w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-cash-register text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Controle de Caixa</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('admin_voucher_history') }}" class="btn btn-outline-secondary w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-history text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Histórico Vouchers</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('admin_sales_reports') }}" class="btn btn-outline-secondary w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-chart-bar text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Relatórios de Vendas</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('create_plan') }}" class="btn btn-outline-secondary w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-plus text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Criar Plano</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-3 col-md-6">
+                            <a href="{{ url_for('cash_register_history') }}" class="btn btn-outline-secondary w-100 py-3 text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-file-invoice-dollar text-muted"></i>
+                                    </div>
+                                    <span class="fw-medium">Histórico Caixa</span>
+                                </div>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

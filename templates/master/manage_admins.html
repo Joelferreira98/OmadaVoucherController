@@ -3,59 +3,92 @@
 {% block title %}Gerenciar Administradores{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Gerenciar Administradores</h1>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAdminModal">
-                <i class="fas fa-plus me-2"></i>Criar Administrador
-            </button>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                {% if admins %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Usuário</th>
-                                    <th>Email</th>
-                                    <th>Sites Atribuídos</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for admin in admins %}
-                                <tr>
-                                    <td>{{ admin.username }}</td>
-                                    <td>{{ admin.email }}</td>
-                                    <td>
-                                        {% for admin_site in admin.admin_sites %}
-                                            <span class="badge bg-secondary me-1">{{ admin_site.site.name }}</span>
-                                        {% endfor %}
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="assignSites({{ admin.id }}, '{{ admin.username }}')">
-                                            <i class="fas fa-building me-1"></i>Atribuir Sites
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="text-muted">Nenhum administrador encontrado.</p>
-                {% endif %}
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Gerenciar Administradores</h1>
+                    <p class="text-muted mb-0 mt-1">Criar e atribuir sites para administradores</p>
+                </div>
+                <button class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#createAdminModal">
+                    <i class="fas fa-plus me-1"></i>Criar Administrador
+                </button>
             </div>
         </div>
     </div>
-</div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-0">Administradores do Sistema</h6>
+                </div>
+                <div class="card-body pt-2">
+                    {% if admins %}
+                        <div class="table-responsive">
+                            <table class="table table-borderless table-sm mb-0">
+                                <thead>
+                                    <tr class="text-muted small">
+                                        <th class="border-0 fw-medium">Administrador</th>
+                                        <th class="border-0 fw-medium">Sites Atribuídos</th>
+                                        <th class="border-0 fw-medium text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for admin in admins %}
+                                    <tr>
+                                        <td class="py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-user-shield text-muted"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold text-dark">{{ admin.username }}</div>
+                                                    <div class="small text-muted">{{ admin.email }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            {% if admin.admin_sites %}
+                                                <div class="d-flex gap-1 flex-wrap">
+                                                    {% for admin_site in admin.admin_sites %}
+                                                        <span class="badge bg-secondary rounded-pill small">{{ admin_site.site.name }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted small">Nenhum site atribuído</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-3 text-end">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="assignSites({{ admin.id }}, '{{ admin.username }}')">
+                                                <i class="fas fa-building small me-1"></i>Atribuir Sites
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="mb-3">
+                                <i class="fas fa-user-shield fa-3x text-muted opacity-25"></i>
+                            </div>
+                            <h6 class="text-muted mb-2">Nenhum administrador encontrado</h6>
+                            <p class="text-muted small mb-0">Crie administradores para gerenciar sites específicos.</p>
+                            <div class="mt-3">
+                                <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#createAdminModal">
+                                    <i class="fas fa-plus me-1"></i>Criar Primeiro Administrador
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 
 <!-- Create Admin Modal -->
 <div class="modal fade" id="createAdminModal" tabindex="-1">

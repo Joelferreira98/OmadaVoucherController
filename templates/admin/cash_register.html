@@ -3,48 +3,56 @@
 {% block title %}Controle de Caixa - {{ current_site.name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4><i data-feather="dollar-sign" class="me-2"></i>Controle de Caixa - {{ current_site.name }}</h4>
-        <a href="{{ url_for('cash_register_history') }}" class="btn btn-outline-secondary">
-            <i data-feather="history" class="me-1"></i>Histórico de Fechamentos
-        </a>
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Controle de Caixa</h1>
+                    <p class="text-muted mb-0 mt-1">{{ current_site.name }}</p>
+                </div>
+                <a href="{{ url_for('cash_register_history') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-history me-1"></i>Histórico
+                </a>
+            </div>
+        </div>
     </div>
 
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-lg-8">
             <!-- Current Period Summary -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Período Atual</h5>
-                    <small class="text-muted">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-1">Período Atual</h6>
+                    <p class="text-muted small mb-0">
                         {{ period_start.strftime('%d/%m/%Y %H:%M') }} até {{ period_end.strftime('%d/%m/%Y %H:%M') }}
-                    </small>
+                    </p>
                 </div>
-                <div class="card-body">
-                    <div class="row">
+                <div class="card-body pt-2">
+                    <div class="row g-3">
                         <div class="col-md-3">
-                            <div class="text-center">
-                                <h3 class="text-info">{{ total_generated }}</h3>
-                                <small class="text-muted">Vouchers Gerados</small>
+                            <div class="text-center p-3 bg-light rounded">
+                                <div class="h4 fw-bold text-dark mb-1">{{ total_generated }}</div>
+                                <div class="small text-muted">Vouchers Gerados</div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="text-center">
-                                <h3 class="text-success">{{ total_sold }}</h3>
-                                <small class="text-muted">Vouchers Vendidos</small>
+                            <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                                <div class="h4 fw-bold text-success mb-1">{{ total_sold }}</div>
+                                <div class="small text-muted">Vouchers Vendidos</div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="text-center">
-                                <h3 class="text-danger">{{ total_expired }}</h3>
-                                <small class="text-muted">Vouchers Expirados</small>
+                            <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
+                                <div class="h4 fw-bold text-danger mb-1">{{ total_expired }}</div>
+                                <div class="small text-muted">Vouchers Expirados</div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="text-center">
-                                <h3 class="text-primary">R$ {{ "%.2f"|format(total_revenue)|replace('.', ',') }}</h3>
-                                <small class="text-muted">Receita Total</small>
+                            <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
+                                <div class="h4 fw-bold text-primary mb-1">R$ {{ "%.2f"|format(total_revenue)|replace('.', ',') }}</div>
+                                <div class="small text-muted">Receita Total</div>
                             </div>
                         </div>
                     </div>

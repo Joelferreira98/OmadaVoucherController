@@ -3,127 +3,146 @@
 {% block title %}Dashboard Master{% endblock %}
 
 {% block content %}
-<!-- Hidden CSRF token for JavaScript use -->
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token">
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Dashboard Master</h1>
-            <div>
-                <a href="{{ url_for('omada_config') }}" class="btn btn-info me-2">
-                    <i class="fas fa-cog me-2"></i>Configurar API
-                </a>
-                <button class="btn btn-success" onclick="syncSites()">
-                    <i class="fas fa-sync me-2"></i>Sincronizar Sites
-                </button>
+<div class="container-fluid px-4">
+    <!-- Hidden CSRF token for JavaScript use -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token">
+    
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Dashboard Master</h1>
+                    <p class="text-muted mb-0 mt-1">Administração do Sistema</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('omada_config') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-cog me-1"></i>Configurar API
+                    </a>
+                    <button class="btn btn-dark btn-sm" onclick="syncSites()">
+                        <i class="fas fa-sync me-1"></i>Sincronizar Sites
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Administradores</h5>
-                        <h2>{{ total_admins }}</h2>
+    <!-- KPI Cards -->
+    <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-users-cog fa-2x text-primary opacity-75"></i>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-users-cog fa-2x"></i>
+                    <h2 class="fw-bold text-dark mb-1">{{ total_admins }}</h2>
+                    <p class="text-muted mb-0 small">Administradores</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-user-tie fa-2x text-success opacity-75"></i>
                     </div>
+                    <h2 class="fw-bold text-dark mb-1">{{ total_vendors }}</h2>
+                    <p class="text-muted mb-0 small">Vendedores</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-building fa-2x text-info opacity-75"></i>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-1">{{ total_sites }}</h2>
+                    <p class="text-muted mb-0 small">Sites</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="mb-2">
+                        <i class="fas fa-ticket-alt fa-2x text-warning opacity-75"></i>
+                    </div>
+                    <h2 class="fw-bold text-dark mb-1">{{ recent_vouchers|length }}</h2>
+                    <p class="text-muted mb-0 small">Vouchers Recentes</p>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Vendedores</h5>
-                        <h2>{{ total_vendors }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-user-tie fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Sites</h5>
-                        <h2>{{ total_sites }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-building fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Vouchers Recentes</h5>
-                        <h2>{{ recent_vouchers|length }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-ticket-alt fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Atividade Recente</h5>
-            </div>
-            <div class="card-body">
-                {% if recent_vouchers %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Site</th>
-                                    <th>Plano</th>
-                                    <th>Quantidade</th>
-                                    <th>Valor</th>
-                                    <th>Criado Por</th>
-                                    <th>Data</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for voucher in recent_vouchers %}
-                                <tr>
-                                    <td>{{ voucher.site.name }}</td>
-                                    <td>{{ voucher.plan.name }}</td>
-                                    <td>{{ voucher.quantity }}</td>
-                                    <td>{{ voucher.total_value | currency }}</td>
-                                    <td>{{ voucher.created_by.username }}</td>
-                                    <td>{{ voucher.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="text-muted">Nenhuma atividade recente encontrada.</p>
-                {% endif %}
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-0">Atividade Recente</h6>
+                </div>
+                <div class="card-body pt-2">
+                    {% if recent_vouchers %}
+                        <div class="table-responsive">
+                            <table class="table table-borderless table-sm mb-0">
+                                <thead>
+                                    <tr class="text-muted small">
+                                        <th class="border-0 fw-medium">Site</th>
+                                        <th class="border-0 fw-medium">Plano</th>
+                                        <th class="border-0 fw-medium text-center">Quantidade</th>
+                                        <th class="border-0 fw-medium text-center">Valor</th>
+                                        <th class="border-0 fw-medium">Criado Por</th>
+                                        <th class="border-0 fw-medium text-end">Data</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for voucher in recent_vouchers %}
+                                    <tr>
+                                        <td class="py-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                    <i class="fas fa-building text-muted small"></i>
+                                                </div>
+                                                <span class="fw-medium">{{ voucher.site.name }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-2">
+                                            <span class="text-muted">{{ voucher.plan.name }}</span>
+                                        </td>
+                                        <td class="py-2 text-center">
+                                            <span class="badge bg-primary rounded-pill">{{ voucher.quantity }}</span>
+                                        </td>
+                                        <td class="py-2 text-center">
+                                            <span class="fw-bold">R$ {{ "%.2f"|format(voucher.total_value)|replace('.', ',') }}</span>
+                                        </td>
+                                        <td class="py-2">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
+                                                    <i class="fas fa-user text-muted" style="font-size: 10px;"></i>
+                                                </div>
+                                                <span class="text-muted small">{{ voucher.created_by.username }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-2 text-end">
+                                            <span class="text-muted small">{{ voucher.created_at.strftime('%d/%m/%Y') }}</span><br>
+                                            <span class="text-muted" style="font-size: 11px;">{{ voucher.created_at.strftime('%H:%M') }}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="mb-3">
+                                <i class="fas fa-history fa-3x text-muted opacity-25"></i>
+                            </div>
+                            <h6 class="text-muted mb-2">Nenhuma atividade recente</h6>
+                            <p class="text-muted small mb-0">Não há atividade de vouchers para exibir.</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

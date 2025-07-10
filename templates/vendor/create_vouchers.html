@@ -3,26 +3,28 @@
 {% block title %}Gerar Vouchers - {{ site.name }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1>Gerar Vouchers</h1>
-                <small class="text-muted">Site: {{ site.name }}</small>
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Gerar Vouchers</h1>
+                    <p class="text-muted mb-0 mt-1">{{ site.name }}</p>
+                </div>
+                <a href="{{ url_for('vendor_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left me-1"></i>Voltar
+                </a>
             </div>
-            <a href="{{ url_for('vendor_dashboard') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Voltar ao Dashboard
-            </a>
         </div>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Configuração dos Vouchers</h5>
-            </div>
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-0">Configuração dos Vouchers</h6>
+                </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('generate_vouchers') }}" id="voucherForm">
                     {{ form.hidden_tag() }}

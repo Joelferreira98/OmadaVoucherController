@@ -3,83 +3,106 @@
 {% block title %}Gerenciar Vendedores - {{ current_site.name }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1>Gerenciar Vendedores</h1>
-                <small class="text-muted">Site: {{ current_site.name }}</small>
+<div class="container-fluid px-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Gerenciar Vendedores</h1>
+                    <p class="text-muted mb-0 mt-1">{{ current_site.name }}</p>
+                </div>
+                <button class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#createVendorModal">
+                    <i class="fas fa-plus me-1"></i>Criar Vendedor
+                </button>
             </div>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createVendorModal">
-                <i class="fas fa-plus me-2"></i>Criar Vendedor
-            </button>
         </div>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                {% if vendors %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Usuário</th>
-                                    <th>Email</th>
-                                    <th>Data de Criação</th>
-                                    <th>Status</th>
-                                    <th>Vouchers Criados</th>
-                                    <th>Receita Total</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for vendor_data in vendors %}
-                                {% set vendor = vendor_data[0] %}
-                                {% set total_vouchers = vendor_data[1] or 0 %}
-                                {% set total_revenue = vendor_data[2] or 0 %}
-                                <tr>
-                                    <td>{{ vendor.username }}</td>
-                                    <td>{{ vendor.email }}</td>
-                                    <td>{{ vendor.created_at.strftime('%d/%m/%Y') }}</td>
-                                    <td>
-                                        {% if vendor.is_active %}
-                                            <span class="badge bg-success">Ativo</span>
-                                        {% else %}
-                                            <span class="badge bg-danger">Inativo</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ total_vouchers }}</td>
-                                    <td>R$ {{ total_revenue|currency }}</td>
-                                    <td>
-                                        {% if vendor.is_active %}
-                                            <button class="btn btn-sm btn-outline-warning" 
-                                                    onclick="toggleVendorStatus({{ vendor.id }}, false)">
-                                                <i class="fas fa-ban me-1"></i>Desativar
-                                            </button>
-                                        {% else %}
-                                            <button class="btn btn-sm btn-outline-success" 
-                                                    onclick="toggleVendorStatus({{ vendor.id }}, true)">
-                                                <i class="fas fa-check me-1"></i>Ativar
-                                            </button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Nenhum vendedor encontrado para este site.</p>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createVendorModal">
-                            <i class="fas fa-plus me-2"></i>Criar Primeiro Vendedor
-                        </button>
-                    </div>
-                {% endif %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="fw-bold text-dark mb-0">Vendedores do Site</h6>
+                </div>
+                <div class="card-body pt-2">
+                    {% if vendors %}
+                        <div class="table-responsive">
+                            <table class="table table-borderless table-sm mb-0">
+                                <thead>
+                                    <tr class="text-muted small">
+                                        <th class="border-0 fw-medium">Vendedor</th>
+                                        <th class="border-0 fw-medium">Informações</th>
+                                        <th class="border-0 fw-medium text-center">Performance</th>
+                                        <th class="border-0 fw-medium text-center">Status</th>
+                                        <th class="border-0 fw-medium text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vendor_data in vendors %}
+                                    {% set vendor = vendor_data[0] %}
+                                    {% set total_vouchers = vendor_data[1] or 0 %}
+                                    {% set total_revenue = vendor_data[2] or 0 %}
+                                    <tr>
+                                        <td class="py-3">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-user text-muted"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold text-dark">{{ vendor.username }}</div>
+                                                    <div class="small text-muted">{{ vendor.email }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="small text-muted">
+                                                <div>Criado em {{ vendor.created_at.strftime('%d/%m/%Y') }}</div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 text-center">
+                                            <div class="small">
+                                                <div class="fw-bold">{{ total_vouchers }} vouchers</div>
+                                                <div class="text-muted">R$ {{ "%.2f"|format(total_revenue or 0)|replace('.', ',') }}</div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 text-center">
+                                            <span class="badge bg-{{ 'success' if vendor.is_active else 'secondary' }} rounded-pill">
+                                                {{ 'Ativo' if vendor.is_active else 'Inativo' }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 text-end">
+                                            {% if vendor.is_active %}
+                                                <button class="btn btn-sm btn-outline-warning" 
+                                                        onclick="toggleVendorStatus({{ vendor.id }}, false)">
+                                                    <i class="fas fa-ban small me-1"></i>Desativar
+                                                </button>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-outline-success" 
+                                                        onclick="toggleVendorStatus({{ vendor.id }}, true)">
+                                                    <i class="fas fa-check small me-1"></i>Ativar
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="mb-3">
+                                <i class="fas fa-users fa-3x text-muted opacity-25"></i>
+                            </div>
+                            <h6 class="text-muted mb-2">Nenhum vendedor encontrado</h6>
+                            <p class="text-muted small mb-0">Crie vendedores para este site para começar a vender vouchers.</p>
+                            <div class="mt-3">
+                                <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#createVendorModal">
+                                    <i class="fas fa-plus me-1"></i>Criar Primeiro Vendedor
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
             </div>
         </div>
     </div>
