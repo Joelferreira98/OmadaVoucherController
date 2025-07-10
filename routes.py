@@ -1135,22 +1135,10 @@ def print_vouchers(voucher_group_id):
         flash('Acesso negado a este grupo de vouchers.', 'error')
         return redirect(url_for('voucher_history'))
     
-    try:
-        # Generate PDF for printing (A4 format)
-        pdf_data = generate_voucher_pdf(voucher_group, voucher_group.voucher_codes, 'a4')
-        
-        # Create response for inline viewing (opens in browser for printing)
-        response = make_response(pdf_data)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'inline; filename=vouchers_print_{voucher_group.id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
-        
-        logging.info(f"PDF opened for printing: voucher group {voucher_group_id} by {current_user.username}")
-        return response
-        
-    except Exception as e:
-        logging.error(f"Error generating PDF for printing: {str(e)}")
-        flash('Erro ao preparar PDF para impressão.', 'error')
-        return redirect(url_for('voucher_history'))
+    logging.info(f"Print page opened for voucher group {voucher_group_id} by {current_user.username}")
+    
+    # Render HTML page optimized for printing
+    return render_template('vendor/print_vouchers.html', voucher_group=voucher_group)
 
 @app.route('/vendor/sales_reports')
 @login_required  
