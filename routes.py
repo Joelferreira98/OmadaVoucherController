@@ -683,6 +683,69 @@ def toggle_plan_status():
     
     return redirect(url_for('manage_plans'))
 
+# Sales Reports
+@app.route('/admin/sales_reports')
+@login_required
+def admin_sales_reports():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    # Get current site
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    # Get date range from request
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    # Get sales data
+    query = VoucherGroup.query.filter_by(site_id=current_site_id)
+    
+    if start_date:
+        query = query.filter(VoucherGroup.created_at >= start_date)
+    if end_date:
+        query = query.filter(VoucherGroup.created_at <= end_date)
+    
+    voucher_groups = query.order_by(VoucherGroup.created_at.desc()).all()
+    
+    # Calculate totals
+    total_vouchers = sum(vg.quantity for vg in voucher_groups)
+    total_revenue = sum(vg.total_value for vg in voucher_groups)
+    
+    # Group by vendor
+    vendor_stats = {}
+    for vg in voucher_groups:
+        vendor_id = vg.created_by_id
+        if vendor_id not in vendor_stats:
+            vendor_stats[vendor_id] = {
+                'vendor': vg.created_by,
+                'vouchers': 0,
+                'revenue': 0
+            }
+        vendor_stats[vendor_id]['vouchers'] += vg.quantity
+        vendor_stats[vendor_id]['revenue'] += vg.total_value
+    
+    return render_template('admin/sales_reports.html',
+                         current_site=current_site,
+                         voucher_groups=voucher_groups,
+                         vendor_stats=vendor_stats,
+                         total_vouchers=total_vouchers,
+                         total_revenue=total_revenue,
+                         start_date=start_date,
+                         end_date=end_date)
+
 # Vendor Routes
 @app.route('/vendor')
 @login_required
