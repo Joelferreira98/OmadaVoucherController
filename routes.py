@@ -302,6 +302,17 @@ def admin_site_selection():
         return redirect(url_for('dashboard'))
     
     admin_sites = AdminSite.query.filter_by(admin_id=current_user.id).all()
+    
+    # If admin has no sites, redirect to dashboard with message
+    if not admin_sites:
+        flash('Nenhum site foi atribuído a você. Entre em contato com o administrador master.', 'warning')
+        return redirect(url_for('login'))
+    
+    # If admin has only one site, redirect directly to that site's dashboard
+    if len(admin_sites) == 1:
+        session['selected_site_id'] = admin_sites[0].site.id
+        return redirect(url_for('admin_dashboard'))
+    
     return render_template('admin/site_selection.html', admin_sites=admin_sites)
 
 @app.route('/admin/select_site/<int:site_id>')
@@ -317,7 +328,10 @@ def select_site(site_id):
         flash('Acesso negado ao site.', 'error')
         return redirect(url_for('admin_site_selection'))
     
-    session['current_site_id'] = site_id
+    # Store selected site in session
+    session['selected_site_id'] = site_id
+    flash(f'Site {admin_site.site.name} selecionado com sucesso.', 'success')
+    logging.info(f"Admin {current_user.username} selected site {admin_site.site.name}")
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin')
@@ -327,17 +341,51 @@ def admin_dashboard():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    current_site_id = session.get('current_site_id')
+    current_site_id = session.get('selected_site_id')
     if not current_site_id:
         return redirect(url_for('admin_site_selection'))
     
-    # Get site information
-    site = Site.query.get(current_site_id)
-    if not site:
-        flash('Site não encontrado.', 'error')
+    # Verify admin has access to this site
+    admin_site = AdminSite.query.filter_by(admin_id=current_user.id, site_id=current_site_id).first()
+    if not admin_site:
+        flash('Acesso negado ao site.', 'error')
         return redirect(url_for('admin_site_selection'))
     
+    # Get site information
+    current_site = admin_site.site
+    
+    # Get all admin sites for potential site switching
+    admin_sites = AdminSite.query.filter_by(admin_id=current_user.id).all()
+    
     # Get statistics for current site
+    total_vendors = User.query.join(VendorSite).filter(
+        VendorSite.site_id == current_site_id,
+        User.user_type == 'vendor'
+    ).count()
+    
+    total_plans = VoucherPlan.query.filter_by(site_id=current_site_id, is_active=True).count()
+    
+    total_vouchers = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
+        VoucherGroup.site_id == current_site_id
+    ).scalar() or 0
+    
+    total_revenue = db.session.query(db.func.sum(VoucherGroup.total_value)).filter(
+        VoucherGroup.site_id == current_site_id
+    ).scalar() or 0
+    
+    # Recent voucher activity
+    recent_vouchers = VoucherGroup.query.filter_by(site_id=current_site_id).order_by(
+        VoucherGroup.created_at.desc()
+    ).limit(10).all()
+    
+    return render_template('admin/dashboard.html',
+                         current_site=current_site,
+                         admin_sites=admin_sites,
+                         total_vendors=total_vendors,
+                         total_plans=total_plans,
+                         total_vouchers=total_vouchers,
+                         total_revenue=total_revenue,
+                         recent_vouchers=recent_vouchers)
     total_vendors = VendorSite.query.filter_by(site_id=current_site_id).count()
     total_plans = VoucherPlan.query.filter_by(site_id=current_site_id).count()
     total_vouchers = VoucherGroup.query.filter_by(site_id=current_site_id).count()
