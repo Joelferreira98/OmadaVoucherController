@@ -170,11 +170,12 @@ function testConnection() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testando...';
     
+    const csrfToken = document.querySelector('[name=csrf_token]');
     fetch('/master/test_connection', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+            'X-CSRFToken': csrfToken ? csrfToken.value : ''
         }
     })
     .then(response => response.json())

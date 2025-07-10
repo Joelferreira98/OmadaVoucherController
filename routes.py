@@ -205,11 +205,19 @@ def sync_sites():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    success, message = sync_sites_from_omada()
-    if success:
-        flash(message, 'success')
-    else:
-        flash(message, 'error')
+    try:
+        logging.info(f"Site synchronization started by {current_user.username}")
+        success, message = sync_sites_from_omada()
+        if success:
+            flash(message, 'success')
+            logging.info(f"Site synchronization completed successfully by {current_user.username}")
+        else:
+            flash(message, 'error')
+            logging.error(f"Site synchronization failed: {message}")
+    except Exception as e:
+        error_msg = f"Erro durante a sincronização: {str(e)}"
+        flash(error_msg, 'error')
+        logging.error(f"Site synchronization error: {str(e)}")
     
     return redirect(url_for('master_dashboard'))
 

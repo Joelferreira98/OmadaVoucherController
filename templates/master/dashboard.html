@@ -3,6 +3,8 @@
 {% block title %}Dashboard Master{% endblock %}
 
 {% block content %}
+<!-- Hidden CSRF token for JavaScript use -->
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token">
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -139,7 +141,8 @@ function syncSites() {
         const csrfToken = document.createElement('input');
         csrfToken.type = 'hidden';
         csrfToken.name = 'csrf_token';
-        csrfToken.value = document.querySelector('[name=csrf_token]').value;
+        const existingToken = document.querySelector('[name=csrf_token]');
+        csrfToken.value = existingToken ? existingToken.value : '';
         
         form.appendChild(csrfToken);
         document.body.appendChild(form);

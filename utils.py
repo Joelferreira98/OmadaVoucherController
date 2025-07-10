@@ -194,15 +194,31 @@ def sync_sites_from_omada():
     from app import db
     
     try:
-        # Get all sites from Omada Controller
-        sites_data = omada_api.get_sites(page=1, page_size=100)
-        if not sites_data:
-            return False, "Falha ao obter sites do Omada Controller. Verifique a configuração da API."
+        # Get all sites from Omada Controller (paginated)
+        all_sites = []
+        page = 1
+        page_size = 100
+        
+        while True:
+            sites_data = omada_api.get_sites(page=page, page_size=page_size)
+            if not sites_data:
+                break
+            
+            all_sites.extend(sites_data)
+            
+            # If we got less than page_size results, we've reached the end
+            if len(sites_data) < page_size:
+                break
+                
+            page += 1
+        
+        if not all_sites:
+            return False, "Nenhum site encontrado no Omada Controller. Verifique a configuração da API."
         
         synced_count = 0
         updated_count = 0
         
-        for site_data in sites_data:
+        for site_data in all_sites:
             site = Site.query.filter_by(site_id=site_data['siteId']).first()
             if not site:
                 # Create new site

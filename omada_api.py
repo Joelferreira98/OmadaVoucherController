@@ -192,12 +192,23 @@ class OmadaAPI:
             logging.error(f"Request error: {str(e)}")
             return None
     
-    def get_sites(self, page: int = 1, page_size: int = 100) -> Optional[List[Dict]]:
+    def get_sites(self, page: int = 1, page_size: int = 100, search_key: str = None, site_type: int = None) -> Optional[List[Dict]]:
         """Get list of sites from Omada Controller"""
-        params = {"page": page, "pageSize": page_size}
+        params = {
+            "page": page, 
+            "pageSize": min(page_size, 1000)  # API limit is 1000
+        }
+        
+        # Add optional parameters
+        if search_key:
+            params["searchKey"] = search_key
+        if site_type is not None:
+            params["filters.type"] = str(site_type)
+            
         result = self._make_request('GET', 'sites', params=params)
         
         if result:
+            logging.info(f"Retrieved {len(result.get('data', []))} sites from page {page}")
             return result.get('data', [])
         return None
     
