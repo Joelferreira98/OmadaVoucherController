@@ -1,0 +1,129 @@
+<?php
+
+// Configurações da API Omada
+define("OMADA_BASE_URL", "https://omada.camstm.com:8043");
+define("CLIENT_ID", "7657b97c995c44a686eb8415d15e6a9f");
+define("CLIENT_SECRET", "351168df71c343d695690361065f9557");
+define("OMADAC_ID", "4cca9807cd4dcfb6202bcda798f170d5");
+// As credenciais de usuário e senha não são mais necessárias para o modo de Credenciais do Cliente
+// define("USERNAME", "letas215@gmail.com");
+// define("PASSWORD", "JbFt@1103");
+
+/**
+ * Função para fazer requisições CURL.
+ *
+ * @param string $url URL da requisição.
+ * @param string $method Método HTTP (GET, POST).
+ * @param array $headers Cabeçalhos da requisição.
+ * @param array $data Dados para o corpo da requisição (para POST).
+ * @return array|false Resposta decodificada em array ou false em caso de erro.
+ */
+function makeCurlRequest($url, $method = 'GET', $headers = [], $data = []) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Apenas para ambiente de teste, remover em produção
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false); // Apenas para ambiente de teste, remover em produção
+
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        $headers[] = 'Content-Type: application/json';
+    }
+
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    if (curl_errno($ch)) {
+        echo 'Erro CURL: ' . curl_error($ch) . "\n";
+        return false;
+    }
+
+    curl_close($ch);
+
+    $decodedResponse = json_decode($response, true);
+
+    // Verifica se a resposta é um JSON válido e se contém 'errorCode'
+    if (is_array($decodedResponse) && isset($decodedResponse['errorCode'])) {
+        if ($decodedResponse['errorCode'] !== 0) {
+            echo 'Erro na requisição: ' . ($decodedResponse['msg'] ?? 'Erro desconhecido') . " (HTTP Status: {$httpCode})\n";
+            echo 'Resposta completa da API: ' . $response . "\n";
+            return false;
+        }
+    } else if ($httpCode !== 200) { // Se não for um JSON com errorCode, verifica apenas o status HTTP
+        echo 'Erro na requisição (HTTP Status: ' . $httpCode . "): " . $response . "\n";
+        return false;
+    }
+
+    return $decodedResponse;
+}
+
+/**
+ * Obtenção do token de acesso usando o modo de credenciais do cliente.
+ */
+function getAccessTokenClientCredentials() {
+    $url = OMADA_BASE_URL . '/openapi/authorize/token?grant_type=client_credentials';
+    $data = [
+        'omadacId' => OMADAC_ID,
+        'client_id' => CLIENT_ID,
+        'client_secret' => CLIENT_SECRET
+    ];
+
+    echo "Obtendo token de acesso (Client Credentials Mode)...\n";
+    $response = makeCurlRequest($url, 'POST', [], $data);
+
+    if ($response && isset($response['result']['accessToken'])) {
+        echo "Token de acesso obtido!\n";
+        return $response['result']['accessToken'];
+    } else {
+        echo "Falha na obtenção do token de acesso.\n";
+        return false;
+    }
+}
+
+/**
+ * Obtenção da lista de sites.
+ */
+function getSiteList($accessToken, $page = 1, $pageSize = 10) {
+    $url = OMADA_BASE_URL . '/openapi/v1/' . OMADAC_ID . '/sites?page=' . $page . '&pageSize=' . $pageSize;
+    $headers = [
+        'Authorization: AccessToken=' . $accessToken
+    ];
+
+    echo "Obtendo lista de sites (Página {$page}, Tamanho {$pageSize})...\n";
+    $response = makeCurlRequest($url, 'GET', $headers);
+
+    if ($response && isset($response['result']['data'])) {
+        echo "Lista de sites obtida com sucesso!\n";
+        return $response['result']['data'];
+    } else {
+        echo "Falha na obtenção da lista de sites.\n";
+        return false;
+    }
+}
+
+// Fluxo principal: obter token de acesso e depois a lista de sites
+$accessToken = getAccessTokenClientCredentials();
+
+if ($accessToken) {
+    echo "Autenticação concluída com sucesso! Token de Acesso: " . $accessToken . "\n";
+    
+    // Obter a lista de sites
+    $siteList = getSiteList($accessToken);
+
+    if ($siteList) {
+        echo "\nSites Encontrados:\n";
+        foreach ($siteList as $site) {
+            echo "  - ID: " . $site['siteId'] . ", Nome: " . $site['name'] . "\n";
+        }
+    } else {
+        echo "Nenhum site encontrado ou falha ao obter a lista de sites.\n";
+    }
+
+} else {
+    echo "Não foi possível obter o token de acesso.\n";
+}
+
+?>

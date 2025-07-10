@@ -68,16 +68,24 @@ class OmadaAPI:
     
     def get_access_token(self) -> Optional[str]:
         """Get access token using client credentials"""
+        # Load configuration from database
+        self._load_tokens()
+        
+        if not self.client_id or not self.client_secret or not self.omadac_id:
+            logging.error("Missing API configuration")
+            return None
+            
         try:
-            url = f"{self.base_url}/openapi/authorize/token"
-            params = {"grant_type": "client_credentials"}
+            url = f"{self.base_url}/openapi/authorize/token?grant_type=client_credentials"
             data = {
                 "omadacId": self.omadac_id,
                 "client_id": self.client_id,
                 "client_secret": self.client_secret
             }
             
-            response = self.session.post(url, params=params, json=data)
+            headers = {'Content-Type': 'application/json'}
+            
+            response = self.session.post(url, json=data, headers=headers)
             response.raise_for_status()
             
             result = response.json()
@@ -85,8 +93,8 @@ class OmadaAPI:
                 token_data = result['result']
                 self._save_config({
                     'access_token': token_data['accessToken'],
-                    'refresh_token': token_data['refreshToken'],
-                    'expires_in': token_data['expiresIn']
+                    'refresh_token': token_data.get('refreshToken'),
+                    'expires_in': token_data.get('expiresIn', 3600)
                 })
                 return token_data['accessToken']
             else:

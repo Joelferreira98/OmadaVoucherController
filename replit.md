@@ -45,8 +45,10 @@ The system uses a relational database with the following key entities:
 
 ### Omada Controller Integration
 - **API Integration**: Connects to TP-Link Omada Controller for hotspot management
+- **Configuration Interface**: Master user interface for API credentials setup
 - **Site Synchronization**: Automatic syncing of sites from Omada Controller
 - **Token Management**: OAuth2-style authentication with token refresh
+- **Connection Testing**: Built-in API connection testing functionality
 
 ## Data Flow
 
@@ -89,6 +91,7 @@ The application relies on environment variables for configuration:
 ### Database Initialization
 - Automatic table creation on startup
 - Default master user creation with credentials (username: master, password: admin123)
+- Omada API configuration storage in database
 - Site synchronization from Omada Controller
 
 ### Security Considerations
