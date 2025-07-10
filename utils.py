@@ -27,31 +27,73 @@ def generate_voucher_pdf(voucher_group, voucher_codes: List[str], format_type: s
         return generate_standard_voucher_pdf(voucher_group, voucher_codes, buffer, doc)
 
 def generate_small_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, doc) -> bytes:
-    """Generate small format vouchers (50x80mm)"""
+    """Generate small format vouchers (50x80mm) - Individual tickets"""
     from reportlab.lib.units import mm
+    from reportlab.platypus import PageBreak
     
-    # Create compact styles for small format
+    # Create ticket-style compact styles for small format
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'SmallTitle',
-        parent=styles['Heading1'],
-        fontSize=8,
-        spaceAfter=2*mm,
-        alignment=TA_CENTER,
-        textColor=colors.darkblue
-    )
-    code_style = ParagraphStyle(
-        'CodeStyle',
+    
+    # Header style for business name
+    header_style = ParagraphStyle(
+        'TicketHeader',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=8,
+        spaceAfter=1*mm,
         alignment=TA_CENTER,
         textColor=colors.black,
         fontName='Helvetica-Bold'
     )
+    
+    # Site name style
+    site_style = ParagraphStyle(
+        'SiteName',
+        parent=styles['Normal'],
+        fontSize=7,
+        spaceAfter=2*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black
+    )
+    
+    # Code style with border effect
+    code_style = ParagraphStyle(
+        'VoucherCode',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=2*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        fontName='Courier-Bold'
+    )
+    
+    # Plan name style
+    plan_style = ParagraphStyle(
+        'PlanName',
+        parent=styles['Normal'],
+        fontSize=8,
+        spaceAfter=1*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
+    )
+    
+    # Price style
+    price_style = ParagraphStyle(
+        'PriceStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=2*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
+    )
+    
+    # Info style for small details
     info_style = ParagraphStyle(
         'InfoStyle',
         parent=styles['Normal'],
-        fontSize=6,
+        fontSize=5,
+        spaceAfter=0.5*mm,
         alignment=TA_CENTER,
         textColor=colors.black
     )
@@ -59,159 +101,225 @@ def generate_small_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, 
     # Check if we have real codes or placeholder codes
     has_real_codes = voucher_codes and not any('OMADA-' in str(code) for code in voucher_codes)
     
-    # Generate one voucher per page
+    # Generate one voucher per page (ticket format)
     story = []
     for i, code in enumerate(voucher_codes):
         if i > 0:
-            from reportlab.platypus import PageBreak
-            story.append(PageBreak())  # Page break
+            story.append(PageBreak())
         
-        # Title and Code
-        story.append(Paragraph("Voucher WiFi", title_style))
+        # Header - Business type
+        story.append(Paragraph("VOUCHER INTERNET", header_style))
         
+        # Site name
+        story.append(Paragraph(f"{voucher_group.site.name}", site_style))
+        
+        # Divider
+        story.append(Paragraph("- - - - - - - - - - - - - - -", info_style))
+        story.append(Spacer(1, 1*mm))
+        
+        # Voucher code
         if has_real_codes:
-            story.append(Paragraph(f"<b>{code}</b>", code_style))
+            story.append(Paragraph(f"{code}", code_style))
         else:
-            story.append(Paragraph("Ver Omada Controller", code_style))
+            story.append(Paragraph("VER OMADA CONTROLLER", code_style))
             story.append(Paragraph(f"ID: {voucher_group.omada_group_id}", info_style))
         
+        # Plan name
+        story.append(Paragraph(f"{voucher_group.plan.name}", plan_style))
+        
+        # Duration
+        duration_text = format_duration(voucher_group.plan.duration, voucher_group.plan.duration_unit)
+        story.append(Paragraph(f"Tempo: {duration_text}", info_style))
+        
+        # Price
+        story.append(Paragraph(f"{format_currency(voucher_group.plan.price)}", price_style))
+        
+        # Instructions
         story.append(Spacer(1, 2*mm))
+        story.append(Paragraph("COMO USAR:", info_style))
+        story.append(Paragraph("1. Conecte-se ao WiFi", info_style))
+        story.append(Paragraph("2. Digite o código", info_style))
+        story.append(Paragraph("3. Clique em Conectar", info_style))
         
-        # Plan info
-        plan_info = f"""
-        <b>{voucher_group.plan.name}</b><br/>
-        Duração: {voucher_group.plan.duration} {voucher_group.plan.duration_unit}<br/>
-        Preço: R$ {voucher_group.plan.price:.2f}<br/>
-        Site: {voucher_group.site.name}
-        """
-        story.append(Paragraph(plan_info, info_style))
-        
-        if not has_real_codes:
-            story.append(Spacer(1, 1*mm))
-            story.append(Paragraph("⚠️ Código real no Omada Controller", info_style))
+        # Cut line at bottom
+        story.append(Spacer(1, 1*mm))
+        story.append(Paragraph("✂ - - - - - - - - - - - - - - - ✂", info_style))
     
     doc.build(story)
     buffer.seek(0)
     return buffer.read()
 
 def generate_standard_voucher_pdf(voucher_group, voucher_codes: List[str], buffer, doc) -> bytes:
-    """Generate standard A4 format vouchers"""
+    """Generate standard A4 format vouchers - Individual tickets arranged in grid"""
+    from reportlab.platypus import PageBreak, Frame, KeepTogether
+    from reportlab.lib.units import mm
     
-    # Styles
+    # Styles for ticket format on A4
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.darkblue,
+    
+    # Header style for each ticket
+    ticket_header_style = ParagraphStyle(
+        'TicketHeader',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=2*mm,
         alignment=TA_CENTER,
-        spaceAfter=0.3*inch
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
     )
     
-    header_style = ParagraphStyle(
-        'CustomHeader',
+    # Site name style
+    site_style = ParagraphStyle(
+        'SiteName',
+        parent=styles['Normal'],
+        fontSize=9,
+        spaceAfter=3*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black
+    )
+    
+    # Code style
+    code_style = ParagraphStyle(
+        'VoucherCode',
+        parent=styles['Normal'],
+        fontSize=14,
+        spaceAfter=3*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        fontName='Courier-Bold'
+    )
+    
+    # Plan name style
+    plan_style = ParagraphStyle(
+        'PlanName',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=2*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        fontName='Helvetica-Bold'
+    )
+    
+    # Price style
+    price_style = ParagraphStyle(
+        'PriceStyle',
         parent=styles['Normal'],
         fontSize=12,
+        spaceAfter=3*mm,
+        alignment=TA_CENTER,
         textColor=colors.black,
-        alignment=TA_LEFT,
-        spaceAfter=0.2*inch
+        fontName='Helvetica-Bold'
     )
     
-    # Build content
-    story = []
+    # Info style
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=7,
+        spaceAfter=1*mm,
+        alignment=TA_CENTER,
+        textColor=colors.black
+    )
     
-    # Title
-    title = Paragraph("Vouchers de Internet", title_style)
-    story.append(title)
-    
-    # Plan information
-    plan_info = f"""
-    <b>Plano:</b> {voucher_group.plan.name}<br/>
-    <b>Duração:</b> {voucher_group.plan.duration} {voucher_group.plan.duration_unit}<br/>
-    <b>Preço:</b> R$ {voucher_group.plan.price:.2f}<br/>
-    <b>Quantidade:</b> {voucher_group.quantity}<br/>
-    <b>Valor Total:</b> R$ {voucher_group.total_value:.2f}<br/>
-    <b>Data de Criação:</b> {voucher_group.created_at.strftime('%d/%m/%Y %H:%M')}<br/>
-    <b>Site:</b> {voucher_group.site.name}
-    """
-    
-    info_para = Paragraph(plan_info, header_style)
-    story.append(info_para)
-    story.append(Spacer(1, 0.3*inch))
-    
-    # Voucher codes table
-    voucher_data = [['Código do Voucher', 'Status']]
-    for code in voucher_codes:
-        voucher_data.append([code, 'Ativo'])
-    
-    # Create table with voucher codes (2 columns per row for better space usage)
-    table_data = []
-    for i in range(0, len(voucher_codes), 2):
-        row = []
-        row.append(voucher_codes[i])
-        if i + 1 < len(voucher_codes):
-            row.append(voucher_codes[i + 1])
-        else:
-            row.append('')
-        table_data.append(row)
-    
-    # Add header
-    table_data.insert(0, ['Código do Voucher', 'Código do Voucher'])
-    
-    table = Table(table_data, colWidths=[2.5*inch, 2.5*inch])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-    ]))
-    
-    story.append(table)
+    # Cut line style
+    cut_style = ParagraphStyle(
+        'CutLine',
+        parent=styles['Normal'],
+        fontSize=8,
+        spaceAfter=2*mm,
+        alignment=TA_CENTER,
+        textColor=colors.grey
+    )
     
     # Check if we have real codes or placeholder codes
     has_real_codes = voucher_codes and not any('OMADA-' in str(code) for code in voucher_codes)
     
-    if has_real_codes:
-        instructions = f"""
-        <b>Instruções de Uso:</b><br/>
-        1. Conecte-se à rede Wi-Fi do local<br/>
-        2. Abra o navegador e acesse qualquer site<br/>
-        3. Será redirecionado para a página de autenticação<br/>
-        4. Digite um dos códigos acima e clique em "Conectar"<br/>
-        5. Aguarde a confirmação da conexão<br/><br/>
-        <b>Importante:</b> Cada voucher pode ser usado apenas uma vez e tem validade conforme o plano escolhido.
-        """
-    else:
-        instructions = f"""
-        <b>⚠️ ATENÇÃO - CÓDIGOS DE REFERÊNCIA APENAS ⚠️</b><br/>
-        Os códigos mostrados acima são apenas para referência/organização.<br/>
-        <b>OS CÓDIGOS REAIS ESTÃO NO OMADA CONTROLLER:</b><br/><br/>
-        
-        <b>Como acessar os códigos reais:</b><br/>
-        1. Acesse o Omada Controller (interface web)<br/>
-        2. Vá em: Sites → Hotspot → Grupos de Vouchers<br/>
-        3. Localize o grupo: <b>{voucher_group.omada_group_id}</b><br/>
-        4. Clique no grupo para ver os códigos reais<br/><br/>
-        
-        <b>Exemplo:</b> O código real pode ser algo como "33537248" ao invés de "OMADA-686fd6..."<br/><br/>
-        
-        <b>Para usar os vouchers:</b><br/>
-        1. Conecte-se à rede Wi-Fi do local<br/>
-        2. Será redirecionado para página de autenticação<br/>
-        3. Digite o código REAL do Omada Controller<br/>
-        4. Clique em "Conectar"
-        """
+    # Create tickets in grid format (2x3 = 6 tickets per page)
+    story = []
+    tickets_per_page = 6
+    tickets_per_row = 2
     
-    story.append(Spacer(1, 0.3*inch))
-    instructions_para = Paragraph(instructions, header_style)
-    story.append(instructions_para)
+    # Create table data for tickets
+    table_data = []
+    current_row = []
+    
+    for i, code in enumerate(voucher_codes):
+        # Create ticket content
+        ticket_content = []
+        
+        # Header
+        ticket_content.append(Paragraph("VOUCHER INTERNET", ticket_header_style))
+        
+        # Site name
+        ticket_content.append(Paragraph(f"{voucher_group.site.name}", site_style))
+        
+        # Voucher code
+        if has_real_codes:
+            ticket_content.append(Paragraph(f"{code}", code_style))
+        else:
+            ticket_content.append(Paragraph("VER OMADA CONTROLLER", code_style))
+            ticket_content.append(Paragraph(f"ID: {voucher_group.omada_group_id}", info_style))
+        
+        # Plan name
+        ticket_content.append(Paragraph(f"{voucher_group.plan.name}", plan_style))
+        
+        # Duration
+        duration_text = format_duration(voucher_group.plan.duration, voucher_group.plan.duration_unit)
+        ticket_content.append(Paragraph(f"Tempo: {duration_text}", info_style))
+        
+        # Price
+        ticket_content.append(Paragraph(f"{format_currency(voucher_group.plan.price)}", price_style))
+        
+        # Instructions
+        ticket_content.append(Paragraph("COMO USAR:", info_style))
+        ticket_content.append(Paragraph("1. Conecte-se ao WiFi", info_style))
+        ticket_content.append(Paragraph("2. Digite o código", info_style))
+        ticket_content.append(Paragraph("3. Clique em Conectar", info_style))
+        
+        # Cut line
+        ticket_content.append(Paragraph("✂ - - - - - - - - - - - - - - - ✂", cut_style))
+        
+        # Join all content
+        ticket_cell = []
+        for content in ticket_content:
+            ticket_cell.append(content)
+        
+        current_row.append(ticket_cell)
+        
+        # If row is complete or it's the last voucher, add to table
+        if len(current_row) == tickets_per_row or i == len(voucher_codes) - 1:
+            # Fill remaining cells if needed
+            while len(current_row) < tickets_per_row:
+                current_row.append("")
+            
+            table_data.append(current_row)
+            current_row = []
+            
+            # If we have enough rows for a page, create the table
+            if len(table_data) == 3 or i == len(voucher_codes) - 1:
+                # Create table with tickets
+                table = Table(table_data, colWidths=[3*inch, 3*inch], rowHeights=[2.5*inch] * len(table_data))
+                table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white]),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 3),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                    ('TOPPADDING', (0, 0), (-1, -1), 3),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ]))
+                
+                story.append(table)
+                
+                # Add page break if not the last batch
+                if i < len(voucher_codes) - 1:
+                    story.append(PageBreak())
+                
+                # Reset table data for next page
+                table_data = []
     
     doc.build(story)
     buffer.seek(0)
