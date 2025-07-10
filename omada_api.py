@@ -376,6 +376,57 @@ class OmadaAPI:
         """Export vouchers from Omada Controller"""
         endpoint = f"sites/{site_id}/hotspot/vouchers/export"
         return self._make_request('GET', endpoint, params=filters)
+    
+    def delete_expired_vouchers(self, site_id: str, group_id: str) -> Optional[Dict]:
+        """Delete expired vouchers in a voucher group"""
+        endpoint = f"sites/{site_id}/hotspot/voucher-groups/{group_id}/clear-invalid"
+        
+        logging.info(f"Deleting expired vouchers for site {site_id}, group {group_id}")
+        
+        # Use DELETE method as specified in the API documentation
+        if not self._ensure_valid_token():
+            logging.error("Failed to obtain valid token for deleting expired vouchers")
+            return None
+        
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/{endpoint}"
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        
+        try:
+            logging.debug(f"Making DELETE request to: {url}")
+            response = self.session.delete(url, headers=headers)
+            
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response text: {response.text}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            logging.info(f"Delete expired vouchers response: {result}")
+            
+            # Check for API errors
+            if result.get('errorCode') != 0:
+                error_code = result.get('errorCode')
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Omada API returned error {error_code}: {error_msg}")
+                
+                # Handle specific error codes
+                if error_code == -33000:
+                    logging.error("Site does not exist")
+                elif error_code == -33004:
+                    logging.error("Operation failed due to concurrent operations")
+                elif error_code == -44111:
+                    logging.error("Invalid Grant Type")
+                elif error_code == -44112:
+                    logging.error("Access token has expired")
+            
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error deleting expired vouchers: {str(e)}")
+            return None
 
 # Global instance
 omada_api = OmadaAPI()

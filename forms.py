@@ -46,3 +46,7 @@ class OmadaConfigForm(FlaskForm):
     client_id = StringField('Client ID', validators=[DataRequired()])
     client_secret = StringField('Client Secret', validators=[DataRequired()])
     omadac_id = StringField('Omadac ID', validators=[DataRequired()])
+
+class CashRegisterForm(FlaskForm):
+    notes = TextAreaField('Observações', widget=TextArea(), validators=[Optional(), Length(max=1000)])
+    remove_expired = BooleanField('Remover vouchers expirados do Omada Controller', default=True)

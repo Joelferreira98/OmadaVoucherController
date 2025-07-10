@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Vouchers - {{ site.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="plus-circle" class="me-2"></i>
+                        Criar Vouchers - {{ site.name }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin_generate_vouchers') }}" id="voucherForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.plan_id.label(class="form-label") }}
+                                    {{ form.plan_id(class="form-select", id="planSelect") }}
+                                    {% if form.plan_id.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.plan_id.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.quantity.label(class="form-label") }}
+                                    {{ form.quantity(class="form-control", min="1", max="1000", value="1", id="quantityInput") }}
+                                    {% if form.quantity.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.quantity.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="planDetails" class="mb-3" style="display: none;">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Detalhes do Plano</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Duração:</strong> <span id="planDuration"></span></p>
+                                            <p><strong>Preço:</strong> <span id="planPrice"></span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Código:</strong> <span id="planCodeLength"></span> dígitos</p>
+                                            <p><strong>Total:</strong> <span id="totalValue">R$ 0,00</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary me-md-2">
+                                <i data-feather="arrow-left" class="me-1"></i>Voltar
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="generateBtn" disabled>
+                                <i data-feather="plus" class="me-1"></i>Gerar Vouchers
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Planos Disponíveis</h6>
+                </div>
+                <div class="card-body">
+                    {% if plans %}
+                        {% for plan in plans %}
+                            <div class="border rounded p-2 mb-2 plan-item" data-plan-id="{{ plan.id }}" style="cursor: pointer;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ plan.name }}</h6>
+                                        <small class="text-muted">
+                                            {{ plan.duration }} 
+                                            {% if plan.duration_unit == 'minutes' %}minutos
+                                            {% elif plan.duration_unit == 'hours' %}horas
+                                            {% else %}dias{% endif %}
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <strong class="text-primary">R$ {{ "%.2f"|format(plan.price)|replace('.', ',') }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Nenhum plano ativo encontrado.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Store plan data for JavaScript
+const planData = {
+    {% for plan in plans %}
+    {{ plan.id }}: {
+        name: "{{ plan.name }}",
+        duration: {{ plan.duration }},
+        duration_unit: "{{ plan.duration_unit }}",
+        price: {{ plan.price }},
+        code_length: {{ plan.code_length }}
+    },
+    {% endfor %}
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const planSelect = document.getElementById('planSelect');
+    const quantityInput = document.getElementById('quantityInput');
+    const planDetails = document.getElementById('planDetails');
+    const generateBtn = document.getElementById('generateBtn');
+    const form = document.getElementById('voucherForm');
+    
+    function updatePlanDetails() {
+        const planId = planSelect.value;
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        if (planId && quantity > 0) {
+            const plan = planData[planId];
+            if (plan) {
+                document.getElementById('planDuration').textContent = 
+                    plan.duration + ' ' + (plan.duration_unit === 'minutes' ? 'minutos' : 
+                                         plan.duration_unit === 'hours' ? 'horas' : 'dias');
+                document.getElementById('planPrice').textContent = 'R$ ' + plan.price.toFixed(2).replace('.', ',');
+                document.getElementById('planCodeLength').textContent = plan.code_length;
+                document.getElementById('totalValue').textContent = 'R$ ' + (plan.price * quantity).toFixed(2).replace('.', ',');
+                
+                planDetails.style.display = 'block';
+                generateBtn.disabled = false;
+            }
+        } else {
+            planDetails.style.display = 'none';
+            generateBtn.disabled = true;
+        }
+    }
+    
+    planSelect.addEventListener('change', updatePlanDetails);
+    quantityInput.addEventListener('input', updatePlanDetails);
+    
+    // Plan item click handler
+    document.querySelectorAll('.plan-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const planId = this.dataset.planId;
+            planSelect.value = planId;
+            updatePlanDetails();
+            
+            // Visual feedback
+            document.querySelectorAll('.plan-item').forEach(p => p.classList.remove('border-primary'));
+            this.classList.add('border-primary');
+        });
+    });
+    
+    // Initialize if plan is pre-selected
+    if (planSelect.value) {
+        updatePlanDetails();
+    }
+    
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        if (!planSelect.value || !quantityInput.value || quantityInput.value <= 0) {
+            e.preventDefault();
+            alert('Por favor, selecione um plano e informe a quantidade.');
+        }
+    });
+});
+</script>
+{% endblock %}

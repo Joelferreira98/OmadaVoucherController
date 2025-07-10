@@ -70,6 +70,23 @@ Preferred communication style: Simple, everyday language.
   - Professional ticket format suitable for customer delivery
   - Fixed ticket dimensions ensure consistent sizing regardless of voucher quantity
 
+### Admin Voucher Management & Cash Register System (July 10, 2025)
+- **Enhancement**: Extended vendor functionality to administrators
+- **Admin Voucher Functions**:
+  - Complete voucher creation system identical to vendor interface
+  - Voucher history management with PDF downloads and printing
+  - Real-time synchronization with Omada Controller
+  - Multi-format support (A4 and thermal printer formats)
+- **Cash Register System**:
+  - Period-based cash register closing with automated calculations
+  - Revenue tracking based on actual voucher sales (used + expired)
+  - Optional removal of expired vouchers from Omada Controller via API
+  - Complete audit trail with voucher group snapshots
+  - Historical reporting of all cash register closings
+  - Database persistence of all financial records even after voucher removal
+- **New Database Model**: CashRegister for comprehensive financial tracking
+- **New API Integration**: delete_expired_vouchers endpoint for cleanup operations
+
 ## System Architecture
 
 ### Backend Architecture

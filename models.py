@@ -107,3 +107,23 @@ class OmadaConfig(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class CashRegister(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('site.id'), nullable=False)
+    closed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    period_start = db.Column(db.DateTime, nullable=False)
+    period_end = db.Column(db.DateTime, nullable=False)
+    vouchers_generated = db.Column(db.Integer, default=0)
+    vouchers_sold = db.Column(db.Integer, default=0)
+    vouchers_expired = db.Column(db.Integer, default=0)
+    vouchers_unused = db.Column(db.Integer, default=0)
+    total_revenue = db.Column(db.Float, default=0.0)
+    expired_vouchers_removed = db.Column(db.Boolean, default=False)
+    voucher_groups_data = db.Column(JSON)  # Snapshot of voucher groups at closing time
+    notes = db.Column(Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    site = db.relationship('Site', backref='cash_registers')
+    closed_by = db.relationship('User', backref='cash_registers')

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de Fechamentos - {{ current_site.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4><i data-feather="history" class="me-2"></i>Histórico de Fechamentos - {{ current_site.name }}</h4>
+        <a href="{{ url_for('cash_register') }}" class="btn btn-primary">
+            <i data-feather="dollar-sign" class="me-1"></i>Controle de Caixa
+        </a>
+    </div>
+
+    {% if cash_registers %}
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Período</th>
+                                <th>Fechado por</th>
+                                <th>Vouchers</th>
+                                <th>Receita</th>
+                                <th>Expirados Removidos</th>
+                                <th>Observações</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cr in cash_registers %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ cr.period_start.strftime('%d/%m/%Y') }}</strong><br>
+                                        <small class="text-muted">até {{ cr.period_end.strftime('%d/%m/%Y %H:%M') }}</small>
+                                    </td>
+                                    <td>{{ cr.closed_by.username }}</td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <small><span class="badge bg-info">{{ cr.vouchers_generated }}</span> Gerados</small>
+                                            <small><span class="badge bg-success">{{ cr.vouchers_sold }}</span> Vendidos</small>
+                                            <small><span class="badge bg-danger">{{ cr.vouchers_expired }}</span> Expirados</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">R$ {{ "%.2f"|format(cr.total_revenue)|replace('.', ',') }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if cr.expired_vouchers_removed %}
+                                            <span class="badge bg-success">
+                                                <i data-feather="check" class="small-icon"></i> Sim
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Não</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if cr.notes %}
+                                            <small>{{ cr.notes[:50] }}{% if cr.notes|length > 50 %}...{% endif %}</small>
+                                        {% else %}
+                                            <small class="text-muted">Sem observações</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-outline-info btn-sm" 
+                                                onclick="showDetails({{ cr.id }})" 
+                                                title="Ver detalhes">
+                                            <i data-feather="eye" class="small-icon"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i data-feather="inbox" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+                <h5 class="text-muted">Nenhum fechamento encontrado</h5>
+                <p class="text-muted">Realize seu primeiro fechamento de caixa.</p>
+                <a href="{{ url_for('cash_register') }}" class="btn btn-primary">
+                    <i data-feather="dollar-sign" class="me-1"></i>Controle de Caixa
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do Fechamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const cashRegisterData = {
+    {% for cr in cash_registers %}
+    {{ cr.id }}: {
+        period_start: "{{ cr.period_start.strftime('%d/%m/%Y %H:%M') }}",
+        period_end: "{{ cr.period_end.strftime('%d/%m/%Y %H:%M') }}",
+        closed_by: "{{ cr.closed_by.username }}",
+        vouchers_generated: {{ cr.vouchers_generated }},
+        vouchers_sold: {{ cr.vouchers_sold }},
+        vouchers_expired: {{ cr.vouchers_expired }},
+        vouchers_unused: {{ cr.vouchers_unused }},
+        total_revenue: {{ cr.total_revenue }},
+        expired_removed: {{ cr.expired_vouchers_removed|tojson }},
+        notes: {{ cr.notes|tojson if cr.notes else '""' }},
+        voucher_groups: {{ cr.voucher_groups_data|tojson if cr.voucher_groups_data else '[]' }}
+    },
+    {% endfor %}
+};
+
+function showDetails(registerId) {
+    const data = cashRegisterData[registerId];
+    if (!data) return;
+    
+    const modalContent = document.getElementById('modalContent');
+    
+    let groupsTable = '';
+    if (data.voucher_groups && data.voucher_groups.length > 0) {
+        groupsTable = `
+            <h6>Vouchers por Grupo</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Plano</th>
+                            <th>Vendedor</th>
+                            <th>Gerados</th>
+                            <th>Vendidos</th>
+                            <th>Receita</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.voucher_groups.map(vg => `
+                            <tr>
+                                <td>${vg.plan_name}</td>
+                                <td>${vg.created_by}</td>
+                                <td><span class="badge bg-info">${vg.quantity}</span></td>
+                                <td><span class="badge bg-success">${vg.used_count + vg.expired_count}</span></td>
+                                <td>R$ ${vg.total_value.toFixed(2).replace('.', ',')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    modalContent.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Informações do Período</h6>
+                <p><strong>Início:</strong> ${data.period_start}</p>
+                <p><strong>Fim:</strong> ${data.period_end}</p>
+                <p><strong>Fechado por:</strong> ${data.closed_by}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Resumo Financeiro</h6>
+                <p><strong>Vouchers Gerados:</strong> ${data.vouchers_generated}</p>
+                <p><strong>Vouchers Vendidos:</strong> ${data.vouchers_sold}</p>
+                <p><strong>Receita Total:</strong> R$ ${data.total_revenue.toFixed(2).replace('.', ',')}</p>
+            </div>
+        </div>
+        
+        ${data.expired_removed ? '<div class="alert alert-success"><i data-feather="check"></i> Vouchers expirados foram removidos do Omada Controller</div>' : ''}
+        
+        ${data.notes ? `<div class="alert alert-info"><strong>Observações:</strong><br>${data.notes}</div>` : ''}
+        
+        ${groupsTable}
+    `;
+    
+    // Re-initialize feather icons
+    feather.replace();
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('detailsModal')).show();
+}
+</script>
+
+<style>
+.small-icon {
+    width: 14px;
+    height: 14px;
+}
+</style>
+{% endblock %}

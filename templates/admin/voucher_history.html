@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de Vouchers - {{ site.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4><i data-feather="clock" class="me-2"></i>Histórico de Vouchers - {{ site.name }}</h4>
+        <div>
+            <a href="{{ url_for('admin_create_vouchers') }}" class="btn btn-primary">
+                <i data-feather="plus" class="me-1"></i>Criar Vouchers
+            </a>
+            <a href="{{ url_for('sync_voucher_status', site_id=site.id) }}" class="btn btn-outline-secondary">
+                <i data-feather="refresh-cw" class="me-1"></i>Sincronizar
+            </a>
+        </div>
+    </div>
+
+    {% if voucher_groups %}
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Plano</th>
+                                <th>Criado por</th>
+                                <th>Quantidade</th>
+                                <th>Status</th>
+                                <th>Não Usados</th>
+                                <th>Usados</th>
+                                <th>Expirados</th>
+                                <th>Receita</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vg in voucher_groups %}
+                                {% set sold_count = (vg.used_count or 0) + (vg.expired_count or 0) %}
+                                {% set revenue = sold_count * vg.plan.price %}
+                                <tr>
+                                    <td>{{ vg.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        <strong>{{ vg.plan.name }}</strong><br>
+                                        <small class="text-muted">R$ {{ "%.2f"|format(vg.plan.price)|replace('.', ',') }}</small>
+                                    </td>
+                                    <td>{{ vg.created_by.username }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ vg.quantity }}</span>
+                                    </td>
+                                    <td>
+                                        {% if sold_count > 0 %}
+                                            <span class="badge bg-success">Vendidos</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Gerados</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ vg.unused_count or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ vg.used_count or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ vg.expired_count or 0 }}</span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">R$ {{ "%.2f"|format(revenue)|replace('.', ',') }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='a4') }}" 
+                                               class="btn btn-outline-primary" title="Download PDF A4">
+                                                <i data-feather="download" class="small-icon"></i>A4
+                                            </a>
+                                            <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='thermal') }}" 
+                                               class="btn btn-outline-secondary" title="Download PDF Térmico">
+                                                <i data-feather="download" class="small-icon"></i>50x80
+                                            </a>
+                                            <a href="{{ url_for('print_vouchers', voucher_group_id=vg.id) }}" 
+                                               class="btn btn-outline-info" title="Imprimir" target="_blank">
+                                                <i data-feather="printer" class="small-icon"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i data-feather="inbox" class="text-muted mb-3" style="width: 48px; height: 48px;"></i>
+                <h5 class="text-muted">Nenhum voucher encontrado</h5>
+                <p class="text-muted">Crie seu primeiro lote de vouchers.</p>
+                <a href="{{ url_for('admin_create_vouchers') }}" class="btn btn-primary">
+                    <i data-feather="plus" class="me-1"></i>Criar Vouchers
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.small-icon {
+    width: 14px;
+    height: 14px;
+}
+</style>
+{% endblock %}

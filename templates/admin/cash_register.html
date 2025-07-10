@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Controle de Caixa - {{ current_site.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4><i data-feather="dollar-sign" class="me-2"></i>Controle de Caixa - {{ current_site.name }}</h4>
+        <a href="{{ url_for('cash_register_history') }}" class="btn btn-outline-secondary">
+            <i data-feather="history" class="me-1"></i>Histórico de Fechamentos
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Current Period Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Período Atual</h5>
+                    <small class="text-muted">
+                        {{ period_start.strftime('%d/%m/%Y %H:%M') }} até {{ period_end.strftime('%d/%m/%Y %H:%M') }}
+                    </small>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-info">{{ total_generated }}</h3>
+                                <small class="text-muted">Vouchers Gerados</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-success">{{ total_sold }}</h3>
+                                <small class="text-muted">Vouchers Vendidos</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-danger">{{ total_expired }}</h3>
+                                <small class="text-muted">Vouchers Expirados</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-primary">R$ {{ "%.2f"|format(total_revenue)|replace('.', ',') }}</h3>
+                                <small class="text-muted">Receita Total</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voucher Groups Details -->
+            {% if voucher_groups %}
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Detalhes dos Vouchers</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Plano</th>
+                                        <th>Vendedor</th>
+                                        <th>Gerados</th>
+                                        <th>Vendidos</th>
+                                        <th>Expirados</th>
+                                        <th>Receita</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vg in voucher_groups %}
+                                        {% set sold_count = (vg.used_count or 0) + (vg.expired_count or 0) %}
+                                        {% set revenue = sold_count * vg.plan.price %}
+                                        <tr>
+                                            <td>{{ vg.created_at.strftime('%d/%m %H:%M') }}</td>
+                                            <td>
+                                                <strong>{{ vg.plan.name }}</strong><br>
+                                                <small class="text-muted">R$ {{ "%.2f"|format(vg.plan.price)|replace('.', ',') }}</small>
+                                            </td>
+                                            <td>{{ vg.created_by.username }}</td>
+                                            <td><span class="badge bg-info">{{ vg.quantity }}</span></td>
+                                            <td><span class="badge bg-success">{{ sold_count }}</span></td>
+                                            <td><span class="badge bg-danger">{{ vg.expired_count or 0 }}</span></td>
+                                            <td><strong>R$ {{ "%.2f"|format(revenue)|replace('.', ',') }}</strong></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <!-- Close Cash Register Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i data-feather="lock" class="me-2"></i>Fechar Caixa
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('close_cash_register') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.notes.label(class="form-label") }}
+                            {{ form.notes(class="form-control", rows="3", placeholder="Observações sobre o fechamento...") }}
+                        </div>
+                        
+                        {% if groups_with_expired %}
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.remove_expired(class="form-check-input") }}
+                                    {{ form.remove_expired.label(class="form-check-label") }}
+                                </div>
+                                <small class="text-muted">
+                                    {{ groups_with_expired|length }} grupo(s) com vouchers expirados
+                                </small>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="alert alert-warning">
+                            <i data-feather="alert-triangle" class="me-2"></i>
+                            <strong>Atenção:</strong> O fechamento de caixa registrará definitivamente as vendas do período e não poderá ser desfeito.
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Confirma o fechamento do caixa?')">
+                                <i data-feather="lock" class="me-1"></i>Fechar Caixa
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Last Closing Info -->
+            {% if last_closing %}
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">Último Fechamento</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Data:</strong> {{ last_closing.period_end.strftime('%d/%m/%Y %H:%M') }}</p>
+                        <p><strong>Fechado por:</strong> {{ last_closing.closed_by.username }}</p>
+                        <p><strong>Receita:</strong> R$ {{ "%.2f"|format(last_closing.total_revenue)|replace('.', ',') }}</p>
+                        <p><strong>Vouchers Vendidos:</strong> {{ last_closing.vouchers_sold }}</p>
+                        {% if last_closing.expired_vouchers_removed %}
+                            <p class="text-success"><i data-feather="check"></i> Expirados removidos</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

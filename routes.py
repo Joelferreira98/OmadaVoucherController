@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 import logging
 
 from app import app, db, login_manager
-from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup, OmadaConfig
+from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup, OmadaConfig, CashRegister
 from datetime import datetime
-from forms import LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, OmadaConfigForm
-from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada
+from forms import LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, OmadaConfigForm, CashRegisterForm
+from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada
 from omada_api import omada_api
 
 @login_manager.user_loader
@@ -764,6 +764,357 @@ def admin_sales_reports():
                          total_revenue=total_revenue,
                          start_date=start_date,
                          end_date=end_date)
+
+# Admin Voucher Management (same as vendor functions)
+@app.route('/admin/create_vouchers')
+@login_required
+def admin_create_vouchers():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    # Get available plans
+    plans = VoucherPlan.query.filter_by(site_id=current_site_id, is_active=True).all()
+    
+    # Create form and populate plan choices
+    form = VoucherGenerationForm()
+    form.plan_id.choices = [(plan.id, f"{plan.name} - R$ {plan.price:.2f}".replace('.', ',')) for plan in plans]
+    
+    # Pre-select plan if provided in URL
+    plan_id = request.args.get('plan_id')
+    if plan_id:
+        form.plan_id.data = int(plan_id)
+    
+    return render_template('admin/create_vouchers.html', 
+                         form=form, 
+                         plans=plans, 
+                         site=current_site)
+
+@app.route('/admin/generate_vouchers', methods=['POST'])
+@login_required
+def admin_generate_vouchers():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    form = VoucherGenerationForm()
+    plans = VoucherPlan.query.filter_by(site_id=current_site_id, is_active=True).all()
+    form.plan_id.choices = [(plan.id, f"{plan.name} - R$ {plan.price:.2f}".replace('.', ',')) for plan in plans]
+    
+    if form.validate_on_submit():
+        try:
+            plan = VoucherPlan.query.filter_by(id=form.plan_id.data, site_id=current_site_id).first()
+            if not plan:
+                flash('Plano não encontrado.', 'error')
+                return redirect(url_for('admin_create_vouchers'))
+            
+            site = Site.query.get(current_site_id)
+            if not site:
+                flash('Site não encontrado.', 'error')
+                return redirect(url_for('admin_create_vouchers'))
+            
+            # Convert duration to minutes for Omada API
+            duration_minutes = plan.duration
+            if plan.duration_unit == 'hours':
+                duration_minutes = plan.duration * 60
+            elif plan.duration_unit == 'days':
+                duration_minutes = plan.duration * 24 * 60
+            
+            # Prepare voucher data for Omada API
+            voucher_data = {
+                "name": f"{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "type": 2,  # Multi-use voucher
+                "voucherNum": form.quantity.data,
+                "timeValid": duration_minutes,
+                "codeLength": plan.code_length,
+                "codeType": 0,  # Number only
+                "limitType": plan.limit_type,
+                "note": f"Gerado por {current_user.username}"
+            }
+            
+            # Add optional fields
+            if plan.limit_num and plan.limit_type != 2:
+                voucher_data["limitNum"] = plan.limit_num
+            if plan.data_quota:
+                voucher_data["dataQuota"] = plan.data_quota
+            if plan.download_speed:
+                voucher_data["downloadLimited"] = True
+                voucher_data["downloadSpeed"] = plan.download_speed
+            if plan.upload_speed:
+                voucher_data["uploadLimited"] = True
+                voucher_data["uploadSpeed"] = plan.upload_speed
+            
+            # Create voucher group in Omada Controller
+            from omada_api import omada_api
+            result = omada_api.create_voucher_group(site.site_id, voucher_data)
+            
+            if result and result.get('errorCode') == 0:
+                omada_group_id = result.get('result', {}).get('id')
+                
+                # Create database record
+                voucher_group = VoucherGroup(
+                    site_id=current_site_id,
+                    plan_id=plan.id,
+                    created_by_id=current_user.id,
+                    quantity=form.quantity.data,
+                    omada_group_id=omada_group_id,
+                    total_value=form.quantity.data * plan.price,
+                    unused_count=form.quantity.data,
+                    used_count=0,
+                    in_use_count=0,
+                    expired_count=0,
+                    status='generated'
+                )
+                db.session.add(voucher_group)
+                db.session.commit()
+                
+                # Try to get real voucher codes after a short delay
+                import time
+                time.sleep(2)
+                sync_voucher_statuses_from_omada(current_site_id)
+                
+                flash(f'{form.quantity.data} vouchers criados com sucesso!', 'success')
+                logging.info(f"Admin {current_user.username} created {form.quantity.data} vouchers for plan {plan.name}")
+                
+                return redirect(url_for('admin_voucher_history'))
+            else:
+                error_msg = result.get('msg', 'Erro desconhecido') if result else 'Falha na comunicação'
+                flash(f'Erro ao criar vouchers: {error_msg}', 'error')
+                logging.error(f"Failed to create vouchers for admin {current_user.username}: {error_msg}")
+        
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error generating vouchers for admin {current_user.username}: {str(e)}")
+            flash('Erro ao gerar vouchers.', 'error')
+    
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'Erro no campo {field}: {error}', 'error')
+    
+    return redirect(url_for('admin_create_vouchers'))
+
+@app.route('/admin/voucher_history')
+@login_required
+def admin_voucher_history():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    # Get all voucher groups for the site
+    voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).order_by(
+        VoucherGroup.created_at.desc()
+    ).all()
+    
+    return render_template('admin/voucher_history.html', 
+                         voucher_groups=voucher_groups, 
+                         site=current_site)
+
+# Cash Register Management
+@app.route('/admin/cash_register')
+@login_required
+def cash_register():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    # Get last cash register closing
+    last_closing = CashRegister.query.filter_by(site_id=current_site_id).order_by(
+        CashRegister.period_end.desc()
+    ).first()
+    
+    # Determine period start
+    period_start = last_closing.period_end if last_closing else datetime(2020, 1, 1)
+    period_end = datetime.now()
+    
+    # Get voucher groups in this period
+    voucher_groups = VoucherGroup.query.filter(
+        VoucherGroup.site_id == current_site_id,
+        VoucherGroup.created_at >= period_start,
+        VoucherGroup.created_at <= period_end
+    ).all()
+    
+    # Calculate statistics
+    total_generated = sum(vg.quantity for vg in voucher_groups)
+    total_sold = sum((vg.used_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
+    total_expired = sum(vg.expired_count or 0 for vg in voucher_groups)
+    total_unused = sum(vg.unused_count or 0 for vg in voucher_groups)
+    total_revenue = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+    
+    # Get groups with expired vouchers
+    groups_with_expired = [vg for vg in voucher_groups if (vg.expired_count or 0) > 0]
+    
+    form = CashRegisterForm()
+    
+    return render_template('admin/cash_register.html',
+                         current_site=current_site,
+                         period_start=period_start,
+                         period_end=period_end,
+                         voucher_groups=voucher_groups,
+                         groups_with_expired=groups_with_expired,
+                         total_generated=total_generated,
+                         total_sold=total_sold,
+                         total_expired=total_expired,
+                         total_unused=total_unused,
+                         total_revenue=total_revenue,
+                         last_closing=last_closing,
+                         form=form)
+
+@app.route('/admin/close_cash_register', methods=['POST'])
+@login_required
+def close_cash_register():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    try:
+        form = CashRegisterForm()
+        if not form.validate_on_submit():
+            flash('Dados inválidos.', 'error')
+            return redirect(url_for('cash_register'))
+        
+        site = Site.query.get(current_site_id)
+        if not site:
+            flash('Site não encontrado.', 'error')
+            return redirect(url_for('cash_register'))
+        
+        # Get last cash register closing
+        last_closing = CashRegister.query.filter_by(site_id=current_site_id).order_by(
+            CashRegister.period_end.desc()
+        ).first()
+        
+        # Determine period
+        period_start = last_closing.period_end if last_closing else datetime(2020, 1, 1)
+        period_end = datetime.now()
+        
+        # Get voucher groups in this period
+        voucher_groups = VoucherGroup.query.filter(
+            VoucherGroup.site_id == current_site_id,
+            VoucherGroup.created_at >= period_start,
+            VoucherGroup.created_at <= period_end
+        ).all()
+        
+        # Calculate statistics
+        total_generated = sum(vg.quantity for vg in voucher_groups)
+        total_sold = sum((vg.used_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
+        total_expired = sum(vg.expired_count or 0 for vg in voucher_groups)
+        total_unused = sum(vg.unused_count or 0 for vg in voucher_groups)
+        total_revenue = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+        
+        # Remove expired vouchers if requested
+        expired_removed = False
+        if form.remove_expired.data:
+            from omada_api import omada_api
+            groups_with_expired = [vg for vg in voucher_groups if (vg.expired_count or 0) > 0]
+            
+            for vg in groups_with_expired:
+                if vg.omada_group_id:
+                    result = omada_api.delete_expired_vouchers(site.site_id, vg.omada_group_id)
+                    if result and result.get('errorCode') == 0:
+                        logging.info(f"Deleted expired vouchers for group {vg.omada_group_id}")
+                        expired_removed = True
+                    else:
+                        logging.warning(f"Failed to delete expired vouchers for group {vg.omada_group_id}")
+        
+        # Create cash register record
+        cash_register = CashRegister(
+            site_id=current_site_id,
+            closed_by_id=current_user.id,
+            period_start=period_start,
+            period_end=period_end,
+            vouchers_generated=total_generated,
+            vouchers_sold=total_sold,
+            vouchers_expired=total_expired,
+            vouchers_unused=total_unused,
+            total_revenue=total_revenue,
+            expired_vouchers_removed=expired_removed,
+            voucher_groups_data=[{
+                'id': vg.id,
+                'plan_name': vg.plan.name,
+                'quantity': vg.quantity,
+                'unused_count': vg.unused_count or 0,
+                'used_count': vg.used_count or 0,
+                'expired_count': vg.expired_count or 0,
+                'total_value': ((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price,
+                'created_at': vg.created_at.isoformat(),
+                'created_by': vg.created_by.username
+            } for vg in voucher_groups],
+            notes=form.notes.data
+        )
+        
+        db.session.add(cash_register)
+        db.session.commit()
+        
+        flash(f'Caixa fechado com sucesso! Receita: R$ {total_revenue:.2f}'.replace('.', ','), 'success')
+        logging.info(f"Cash register closed by {current_user.username} for site {site.name} - Revenue: R$ {total_revenue:.2f}")
+        
+        return redirect(url_for('cash_register_history'))
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error closing cash register: {str(e)}")
+        flash('Erro ao fechar caixa.', 'error')
+        return redirect(url_for('cash_register'))
+
+@app.route('/admin/cash_register_history')
+@login_required
+def cash_register_history():
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    current_site = Site.query.get(current_site_id)
+    if not current_site:
+        flash('Site não encontrado.', 'error')
+        return redirect(url_for('admin_site_selection'))
+    
+    # Get cash register records
+    cash_registers = CashRegister.query.filter_by(site_id=current_site_id).order_by(
+        CashRegister.period_end.desc()
+    ).all()
+    
+    return render_template('admin/cash_register_history.html',
+                         current_site=current_site,
+                         cash_registers=cash_registers)
 
 # Vendor Routes
 @app.route('/vendor')
