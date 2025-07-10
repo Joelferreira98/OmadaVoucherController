@@ -9,62 +9,48 @@
 - **Sistema Operacional**: Ubuntu 20.04+ ou Debian 11+
 - **Conexão**: Banda larga estável
 
-## Método 1: Instalação Automática (Recomendado)
+## Método 1: Instalação Totalmente Automática (Recomendado)
 
-### 1. Preparar a VPS
+### Opção A: Com script de download automático
 ```bash
 # Conectar à VPS via SSH
-ssh root@SEU_IP_DA_VPS
+ssh usuario@SEU_IP_DA_VPS
 
-# Baixar script de instalação
-wget https://raw.githubusercontent.com/seu-usuario/voucher-app/main/install_vps.sh
+# Baixar e executar script de instalação completa
+curl -s https://raw.githubusercontent.com/seu-usuario/voucher-app/main/download_and_install.sh | bash
+```
+
+### Opção B: Upload manual dos arquivos
+```bash
+# 1. Fazer upload dos arquivos para a VPS
+scp -r * usuario@SEU_IP_DA_VPS:/tmp/voucher-app/
+
+# 2. Conectar à VPS e executar instalação
+ssh usuario@SEU_IP_DA_VPS
+cd /tmp/voucher-app
 chmod +x install_vps.sh
-
-# Executar instalação
-./install_vps.sh
+bash install_vps.sh
 ```
 
-### 2. Copiar arquivos da aplicação
-```bash
-# Criar diretório temporário
-mkdir ~/voucher-temp
-cd ~/voucher-temp
+### O que o script faz automaticamente:
+- ✅ Solicita configurações durante a execução (banco, Omada, domínio)
+- ✅ Instala todas as dependências (MySQL, Nginx, Python, etc.)
+- ✅ Cria usuário e diretórios necessários
+- ✅ Copia arquivos da aplicação para local correto
+- ✅ Configura banco de dados MySQL
+- ✅ Cria arquivo .env com suas configurações
+- ✅ Configura Nginx com ou sem domínio
+- ✅ Inicia a aplicação automaticamente
+- ✅ Opcionalmente instala SSL com Let's Encrypt
+- ✅ Cria script de backup automático
 
-# Copiar arquivos da aplicação (via SCP, SFTP ou Git)
-# Exemplo com SCP:
-scp -r /caminho/local/da/aplicacao/* root@SEU_IP_DA_VPS:~/voucher-temp/
-
-# Mover arquivos para diretório final
-sudo cp -r ~/voucher-temp/* /opt/voucher-app/
-sudo chown -R voucher:voucher /opt/voucher-app/
-```
-
-### 3. Configurar ambiente
-```bash
-# Editar arquivo de configuração
-sudo nano /opt/voucher-app/.env
-
-# Configurar credenciais do Omada Controller
-SESSION_SECRET=sua_chave_secreta_muito_forte_aqui_123456789
-DATABASE_URL=postgresql://voucher:voucher_password_123@localhost:5432/voucher_db
-OMADA_CONTROLLER_URL=https://seu-omada-controller.com:8043
-OMADA_CLIENT_ID=seu_client_id
-OMADA_CLIENT_SECRET=seu_client_secret
-OMADA_OMADAC_ID=seu_omadac_id
-```
-
-### 4. Iniciar aplicação
-```bash
-# Atualizar supervisor
-sudo supervisorctl reread
-sudo supervisorctl update
-
-# Iniciar aplicação
-sudo supervisorctl start voucher-app
-
-# Verificar status
-sudo supervisorctl status voucher-app
-```
+### Configurações que serão solicitadas:
+Durante a execução, o script pedirá:
+- **Banco de dados**: Senha do root MySQL, nome do banco, usuário e senha
+- **Aplicação**: Chave secreta (opcional, será gerada automaticamente)
+- **Omada Controller**: URL, Client ID, Client Secret, Omadac ID
+- **Domínio**: Nome do domínio (opcional, pode usar IP)
+- **SSL**: Instalação opcional de certificado Let's Encrypt
 
 ## Método 2: Instalação Manual
 

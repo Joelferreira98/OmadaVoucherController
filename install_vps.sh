@@ -3,8 +3,50 @@
 # Script de instalação para VPS Ubuntu/Debian
 # Voucher Management System - Instalação Automática
 
-echo "=== Instalação do Sistema de Gerenciamento de Vouchers ==="
-echo "Iniciando instalação na VPS..."
+set -e  # Parar em caso de erro
+
+echo "========================================================="
+echo "  Sistema de Gerenciamento de Vouchers - Instalação VPS"
+echo "========================================================="
+echo ""
+
+# Função para input seguro
+read_input() {
+    local prompt="$1"
+    local default="$2"
+    local value
+    
+    if [ -n "$default" ]; then
+        read -p "$prompt [$default]: " value
+        echo "${value:-$default}"
+    else
+        read -p "$prompt: " value
+        echo "$value"
+    fi
+}
+
+# Função para input de senha
+read_password() {
+    local prompt="$1"
+    local password
+    
+    read -s -p "$prompt: " password
+    echo ""
+    echo "$password"
+}
+
+echo "Este script irá instalar o sistema completo na VPS."
+echo "Você precisará fornecer algumas configurações durante a instalação."
+echo ""
+
+# Verificar se está rodando como root
+if [ "$EUID" -eq 0 ]; then
+    echo "⚠️  Este script não deve ser executado como root."
+    echo "Execute: bash install_vps.sh"
+    exit 1
+fi
+
+echo "✓ Iniciando instalação..."
 
 # Atualizar sistema
 echo "Atualizando sistema..."
@@ -24,22 +66,80 @@ echo "Configurando MySQL..."
 sudo systemctl start mysql
 sudo systemctl enable mysql
 
-# Configurar MySQL para aceitar conexões locais
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root_password_123';"
-sudo mysql -u root -proot_password_123 -e "FLUSH PRIVILEGES;"
+# Solicitar configurações do banco de dados
+echo ""
+echo "=== Configuração do Banco de Dados ==="
+DB_ROOT_PASSWORD=$(read_password "Digite a senha para o usuário root do MySQL")
+DB_NAME=$(read_input "Nome do banco de dados" "voucher_db")
+DB_USER=$(read_input "Usuário do banco de dados" "voucher")
+DB_PASSWORD=$(read_password "Senha do usuário do banco de dados")
+
+# Configurar MySQL
+echo "Configurando MySQL..."
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_ROOT_PASSWORD';"
+sudo mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
 
 # Criar banco de dados e usuário
-sudo mysql -u root -proot_password_123 -e "CREATE DATABASE voucher_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -u root -proot_password_123 -e "CREATE USER 'voucher'@'localhost' IDENTIFIED BY 'voucher_password_123';"
-sudo mysql -u root -proot_password_123 -e "GRANT ALL PRIVILEGES ON voucher_db.* TO 'voucher'@'localhost';"
-sudo mysql -u root -proot_password_123 -e "FLUSH PRIVILEGES;"
+sudo mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+sudo mysql -u root -p$DB_ROOT_PASSWORD -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';"
+sudo mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
 
 # Criar diretório da aplicação
 echo "Criando diretório da aplicação..."
 sudo mkdir -p /opt/voucher-app
 sudo chown voucher:voucher /opt/voucher-app
 
-# Copiar arquivos da aplicação (assumindo que já estão no servidor)
+# Solicitar configurações da aplicação
+echo ""
+echo "=== Configuração da Aplicação ==="
+SESSION_SECRET=$(read_input "Chave secreta da aplicação (deixe vazio para gerar automaticamente)")
+if [ -z "$SESSION_SECRET" ]; then
+    SESSION_SECRET=$(openssl rand -hex 32)
+    echo "✓ Chave secreta gerada automaticamente"
+fi
+
+echo ""
+echo "=== Configuração do Omada Controller ==="
+OMADA_URL=$(read_input "URL do Omada Controller" "https://controller.local:8043")
+OMADA_CLIENT_ID=$(read_input "Client ID do Omada")
+OMADA_CLIENT_SECRET=$(read_input "Client Secret do Omada")
+OMADA_OMADAC_ID=$(read_input "Omadac ID")
+
+echo ""
+echo "=== Configuração do Domínio ==="
+DOMAIN_NAME=$(read_input "Nome do domínio (deixe vazio para usar IP)" "")
+
+# Verificar se os arquivos da aplicação estão presentes
+echo ""
+echo "=== Copiando Arquivos da Aplicação ==="
+
+# Verificar se estamos executando de dentro da pasta da aplicação
+if [ -f "app.py" ] && [ -f "main.py" ] && [ -f "requirements.txt" ]; then
+    echo "✓ Arquivos da aplicação encontrados no diretório atual"
+    echo "Copiando arquivos para /opt/voucher-app..."
+    sudo cp -r . /opt/voucher-app/
+    sudo chown -R voucher:voucher /opt/voucher-app/
+elif [ -d "voucher-app" ]; then
+    echo "✓ Pasta voucher-app encontrada"
+    echo "Copiando arquivos para /opt/voucher-app..."
+    sudo cp -r voucher-app/* /opt/voucher-app/
+    sudo chown -R voucher:voucher /opt/voucher-app/
+else
+    echo "❌ Arquivos da aplicação não encontrados!"
+    echo ""
+    echo "Para usar este script, você deve:"
+    echo "1. Fazer upload dos arquivos da aplicação para a VPS"
+    echo "2. Executar o script de dentro da pasta da aplicação"
+    echo ""
+    echo "Exemplo:"
+    echo "  scp -r * usuario@vps:/tmp/voucher-app/"
+    echo "  ssh usuario@vps"
+    echo "  cd /tmp/voucher-app"
+    echo "  bash install_vps.sh"
+    exit 1
+fi
+
 echo "Configurando aplicação..."
 cd /opt/voucher-app
 
@@ -65,16 +165,16 @@ sudo -u voucher ./venv/bin/pip install oauthlib==3.2.2
 
 # Criar arquivo de configuração de ambiente
 echo "Criando arquivo de configuração..."
-sudo -u voucher cat > /opt/voucher-app/.env << 'EOF'
+sudo -u voucher cat > /opt/voucher-app/.env << EOF
 # Configurações da aplicação
-SESSION_SECRET=sua_chave_secreta_muito_forte_aqui_123456789
-DATABASE_URL=mysql+pymysql://voucher:voucher_password_123@localhost:3306/voucher_db
+SESSION_SECRET=$SESSION_SECRET
+DATABASE_URL=mysql+pymysql://$DB_USER:$DB_PASSWORD@localhost:3306/$DB_NAME
 
-# Configurações do Omada Controller (configure conforme necessário)
-OMADA_CONTROLLER_URL=https://seu-omada-controller.com:8043
-OMADA_CLIENT_ID=seu_client_id
-OMADA_CLIENT_SECRET=seu_client_secret
-OMADA_OMADAC_ID=seu_omadac_id
+# Configurações do Omada Controller
+OMADA_CONTROLLER_URL=$OMADA_URL
+OMADA_CLIENT_ID=$OMADA_CLIENT_ID
+OMADA_CLIENT_SECRET=$OMADA_CLIENT_SECRET
+OMADA_OMADAC_ID=$OMADA_OMADAC_ID
 EOF
 
 # Criar arquivo de configuração do Gunicorn
@@ -121,10 +221,16 @@ EOF
 
 # Configurar Nginx
 echo "Configurando Nginx..."
-sudo cat > /etc/nginx/sites-available/voucher-app << 'EOF'
+if [ -n "$DOMAIN_NAME" ]; then
+    SERVER_NAME="$DOMAIN_NAME www.$DOMAIN_NAME"
+else
+    SERVER_NAME="_"
+fi
+
+sudo cat > /etc/nginx/sites-available/voucher-app << EOF
 server {
     listen 80;
-    server_name _;  # Substitua pelo seu domínio
+    server_name $SERVER_NAME;
 
     client_max_body_size 50M;
     
@@ -142,10 +248,10 @@ server {
     # Proxy para a aplicação
     location / {
         proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_redirect off;
         proxy_buffering off;
     }
@@ -172,22 +278,112 @@ sudo ufw allow OpenSSH
 sudo ufw allow 'Nginx Full'
 sudo ufw --force enable
 
-echo "=== Instalação concluída! ==="
+# Inicializar a aplicação
 echo ""
-echo "Próximos passos:"
-echo "1. Copie os arquivos da aplicação para /opt/voucher-app/"
-echo "2. Configure o arquivo .env com suas credenciais reais"
-echo "3. Execute: sudo supervisorctl reread && sudo supervisorctl update"
-echo "4. Execute: sudo supervisorctl start voucher-app"
-echo "5. Acesse sua aplicação no navegador"
+echo "=== Inicializando Aplicação ==="
+echo "Carregando configurações do supervisor..."
+sudo supervisorctl reread
+sudo supervisorctl update
+
+echo "Iniciando aplicação..."
+sudo supervisorctl start voucher-app
+
+# Verificar status
+sleep 3
+APP_STATUS=$(sudo supervisorctl status voucher-app | awk '{print $2}')
+
+if [ "$APP_STATUS" = "RUNNING" ]; then
+    echo "✓ Aplicação iniciada com sucesso!"
+else
+    echo "❌ Erro ao iniciar aplicação. Status: $APP_STATUS"
+    echo "Verificando logs..."
+    sudo tail -20 /var/log/voucher-app/supervisor.log
+fi
+
+# Configurar SSL se domínio foi fornecido
+if [ -n "$DOMAIN_NAME" ]; then
+    echo ""
+    echo "=== Configuração SSL (Opcional) ==="
+    read -p "Deseja instalar certificado SSL com Let's Encrypt? (y/n): " INSTALL_SSL
+    
+    if [ "$INSTALL_SSL" = "y" ] || [ "$INSTALL_SSL" = "Y" ]; then
+        echo "Instalando Certbot..."
+        sudo apt install -y certbot python3-certbot-nginx
+        
+        echo "Obtendo certificado SSL..."
+        sudo certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
+        
+        # Configurar renovação automática
+        echo "0 12 * * * /usr/bin/certbot renew --quiet" | sudo crontab -
+        echo "✓ SSL configurado e renovação automática ativada"
+    fi
+fi
+
 echo ""
-echo "Comandos úteis:"
-echo "- Status da aplicação: sudo supervisorctl status voucher-app"
-echo "- Reiniciar aplicação: sudo supervisorctl restart voucher-app"
-echo "- Ver logs: sudo tail -f /var/log/voucher-app/supervisor.log"
-echo "- Status do Nginx: sudo systemctl status nginx"
+echo "========================================================="
+echo "            🎉 INSTALAÇÃO CONCLUÍDA COM SUCESSO! 🎉"
+echo "========================================================="
 echo ""
-echo "Configuração de domínio:"
-echo "- Edite /etc/nginx/sites-available/voucher-app"
-echo "- Substitua 'server_name _;' por 'server_name seudominio.com;'"
-echo "- Reinicie o Nginx: sudo systemctl reload nginx"
+echo "📋 RESUMO DA INSTALAÇÃO:"
+echo "  • Banco de dados: MySQL ($DB_NAME)"
+echo "  • Usuário da aplicação: voucher"
+echo "  • Localização: /opt/voucher-app"
+if [ -n "$DOMAIN_NAME" ]; then
+    echo "  • Domínio: https://$DOMAIN_NAME"
+else
+    echo "  • Acesso: http://$(curl -s ifconfig.me || hostname -I | awk '{print $1}')"
+fi
+echo ""
+echo "🔐 CREDENCIAIS PADRÃO:"
+echo "  • Usuário: master"
+echo "  • Senha: admin123"
+echo ""
+echo "⚙️  COMANDOS ÚTEIS:"
+echo "  • Status: sudo supervisorctl status voucher-app"
+echo "  • Reiniciar: sudo supervisorctl restart voucher-app"
+echo "  • Logs: sudo tail -f /var/log/voucher-app/supervisor.log"
+echo "  • Nginx: sudo systemctl status nginx"
+echo ""
+echo "📁 ARQUIVOS IMPORTANTES:"
+echo "  • Configuração: /opt/voucher-app/.env"
+echo "  • Logs: /var/log/voucher-app/"
+echo "  • Nginx: /etc/nginx/sites-available/voucher-app"
+echo ""
+echo "🔄 BACKUP AUTOMÁTICO:"
+echo "  • Execute: /opt/voucher-app/create_backup.sh"
+echo ""
+
+# Criar script de backup
+sudo -u voucher cat > /opt/voucher-app/create_backup.sh << 'EOF'
+#!/bin/bash
+# Script de backup automático
+
+BACKUP_DIR="/opt/voucher-app/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p $BACKUP_DIR
+
+# Backup do banco
+source /opt/voucher-app/.env
+DB_PARAMS=$(echo $DATABASE_URL | sed -n 's/mysql+pymysql:\/\/\([^:]*\):\([^@]*\)@[^:]*:[^\/]*\/\(.*\)/\1 \2 \3/p')
+DB_USER=$(echo $DB_PARAMS | awk '{print $1}')
+DB_PASS=$(echo $DB_PARAMS | awk '{print $2}')
+DB_NAME=$(echo $DB_PARAMS | awk '{print $3}')
+
+mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_DIR/db_$DATE.sql
+
+# Backup dos arquivos
+tar -czf $BACKUP_DIR/files_$DATE.tar.gz /opt/voucher-app --exclude=/opt/voucher-app/backups
+
+# Manter apenas os últimos 7 backups
+find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
+find $BACKUP_DIR -name "*.tar.gz" -mtime +7 -delete
+
+echo "✓ Backup criado: $BACKUP_DIR/db_$DATE.sql"
+echo "✓ Backup criado: $BACKUP_DIR/files_$DATE.tar.gz"
+EOF
+
+sudo chmod +x /opt/voucher-app/create_backup.sh
+
+echo "✅ Sistema pronto para uso!"
+echo ""
