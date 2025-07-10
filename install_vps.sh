@@ -40,11 +40,11 @@ echo "Você precisará fornecer algumas configurações durante a instalação."
 echo ""
 
 # Verificar se está rodando como root
-if [ "$EUID" -eq 0 ]; then
-    echo "⚠️  Este script não deve ser executado como root."
-    echo "Execute: bash install_vps.sh"
-    exit 1
-fi
+#if [ "$EUID" -eq 0 ]; then
+#    echo "⚠️  Este script não deve ser #executado como root."
+#    echo "Execute: bash install_vps.sh"
+#    exit 1
+#fi
 
 echo "✓ Iniciando instalação..."
 
@@ -53,37 +53,136 @@ echo "Atualizando sistema..."
 sudo apt update && sudo apt upgrade -y
 
 # Instalar dependências do sistema
-echo "Instalando dependências..."
-sudo apt install -y python3 python3-pip python3-venv nginx mysql-server supervisor git curl
+echo "Instalando dependências básicas..."
+sudo apt install -y python3 python3-pip python3-venv nginx supervisor git curl
+
+# Instalar MySQL apenas se for local
+if [ "$DB_CHOICE" = "1" ]; then
+    echo "Instalando MySQL local..."
+    sudo apt install -y mysql-server
+elif [ "$DB_CHOICE" = "2" ]; then
+    echo "Instalando cliente MySQL para conexão remota..."
+    sudo apt install -y mysql-client
+elif [ "$DB_CHOICE" = "3" ]; then
+    echo "Instalando cliente PostgreSQL para conexão remota..."
+    sudo apt install -y postgresql-client
+fi
 
 # Criar usuário para a aplicação
 echo "Criando usuário voucher..."
 sudo useradd -m -s /bin/bash voucher
 sudo usermod -aG sudo voucher
 
-# Configurar MySQL
-echo "Configurando MySQL..."
-sudo systemctl start mysql
-sudo systemctl enable mysql
+# Configurar MySQL local se necessário
+if [ "$DB_CHOICE" = "1" ]; then
+    echo "Configurando MySQL local..."
+    sudo systemctl start mysql
+    sudo systemctl enable mysql
+fi
 
 # Solicitar configurações do banco de dados
 echo ""
 echo "=== Configuração do Banco de Dados ==="
-DB_ROOT_PASSWORD=$(read_password "Digite a senha para o usuário root do MySQL")
-DB_NAME=$(read_input "Nome do banco de dados" "voucher_db")
-DB_USER=$(read_input "Usuário do banco de dados" "voucher")
-DB_PASSWORD=$(read_password "Senha do usuário do banco de dados")
+echo "Escolha o tipo de banco de dados:"
+echo "1. MySQL Local (instalar na VPS)"
+echo "2. MySQL/MariaDB Remoto (banco online)"
+echo "3. PostgreSQL Remoto"
+echo ""
 
-# Configurar MySQL
-echo "Configurando MySQL..."
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_ROOT_PASSWORD';"
-sudo mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
+while true; do
+    read -p "Digite sua escolha (1-3): " DB_CHOICE
+    case $DB_CHOICE in
+        1|2|3) break;;
+        *) echo "Opção inválida. Digite 1, 2 ou 3.";;
+    esac
+done
 
-# Criar banco de dados e usuário
-sudo mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
-sudo mysql -u root -p$DB_ROOT_PASSWORD -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';"
-sudo mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
+if [ "$DB_CHOICE" = "1" ]; then
+    # MySQL Local
+    echo ""
+    echo "=== Configuração MySQL Local ==="
+    DB_HOST="localhost"
+    DB_PORT="3306"
+    DB_ROOT_PASSWORD=$(read_password "Digite a senha para o usuário root do MySQL")
+    DB_NAME=$(read_input "Nome do banco de dados" "voucher_db")
+    DB_USER=$(read_input "Usuário do banco de dados" "voucher")
+    DB_PASSWORD=$(read_password "Senha do usuário do banco de dados")
+    
+    # Configurar MySQL Local
+    echo "Configurando MySQL local..."
+    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_ROOT_PASSWORD';"
+    sudo mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
+    
+    # Criar banco de dados e usuário
+    sudo mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    sudo mysql -u root -p$DB_ROOT_PASSWORD -e "CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+    sudo mysql -u root -p$DB_ROOT_PASSWORD -e "GRANT ALL PRIVILEGES ON $DB_NAME.* TO '$DB_USER'@'localhost';"
+    sudo mysql -u root -p$DB_ROOT_PASSWORD -e "FLUSH PRIVILEGES;"
+    
+    DATABASE_URL="mysql+pymysql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+    
+elif [ "$DB_CHOICE" = "2" ]; then
+    # MySQL/MariaDB Remoto
+    echo ""
+    echo "=== Configuração MySQL/MariaDB Remoto ==="
+    DB_HOST=$(read_input "Host do banco de dados" "")
+    DB_PORT=$(read_input "Porta do banco de dados" "3306")
+    DB_NAME=$(read_input "Nome do banco de dados" "voucher_db")
+    DB_USER=$(read_input "Usuário do banco de dados" "")
+    DB_PASSWORD=$(read_password "Senha do banco de dados")
+    
+    # Validar campos obrigatórios
+    if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+        echo "❌ Host, usuário e senha são obrigatórios para banco remoto!"
+        exit 1
+    fi
+    
+    DATABASE_URL="mysql+pymysql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+    
+    # Teste de conexão
+    echo "Testando conexão com banco remoto..."
+    if command -v mysql &> /dev/null; then
+        mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "SELECT 1;" &>/dev/null
+        if [ $? -eq 0 ]; then
+            echo "✓ Conexão com banco remoto bem-sucedida!"
+        else
+            echo "⚠️  Não foi possível testar a conexão. Continuando mesmo assim..."
+        fi
+    else
+        echo "ℹ️  Cliente MySQL não disponível para teste. Continuando..."
+    fi
+    
+elif [ "$DB_CHOICE" = "3" ]; then
+    # PostgreSQL Remoto
+    echo ""
+    echo "=== Configuração PostgreSQL Remoto ==="
+    DB_HOST=$(read_input "Host do banco de dados" "")
+    DB_PORT=$(read_input "Porta do banco de dados" "5432")
+    DB_NAME=$(read_input "Nome do banco de dados" "voucher_db")
+    DB_USER=$(read_input "Usuário do banco de dados" "")
+    DB_PASSWORD=$(read_password "Senha do banco de dados")
+    
+    # Validar campos obrigatórios
+    if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+        echo "❌ Host, usuário e senha são obrigatórios para banco remoto!"
+        exit 1
+    fi
+    
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+    
+    # Teste de conexão
+    echo "Testando conexão com PostgreSQL remoto..."
+    if command -v psql &> /dev/null; then
+        PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" &>/dev/null
+        if [ $? -eq 0 ]; then
+            echo "✓ Conexão com PostgreSQL remoto bem-sucedida!"
+        else
+            echo "⚠️  Não foi possível testar a conexão. Continuando mesmo assim..."
+        fi
+    else
+        echo "ℹ️  Cliente PostgreSQL não disponível para teste. Continuando..."
+    fi
+fi
 
 # Criar diretório da aplicação
 echo "Criando diretório da aplicação..."
@@ -147,7 +246,8 @@ cd /opt/voucher-app
 sudo -u voucher python3 -m venv venv
 sudo -u voucher ./venv/bin/pip install --upgrade pip
 
-# Instalar dependências Python
+# Instalar dependências Python básicas
+echo "Instalando dependências Python..."
 sudo -u voucher ./venv/bin/pip install Flask==3.0.0
 sudo -u voucher ./venv/bin/pip install Flask-SQLAlchemy==3.1.1
 sudo -u voucher ./venv/bin/pip install Flask-Login==0.6.3
@@ -156,19 +256,27 @@ sudo -u voucher ./venv/bin/pip install WTForms==3.1.0
 sudo -u voucher ./venv/bin/pip install email-validator==2.1.0
 sudo -u voucher ./venv/bin/pip install Werkzeug==3.0.1
 sudo -u voucher ./venv/bin/pip install gunicorn==21.2.0
-sudo -u voucher ./venv/bin/pip install PyMySQL==1.1.0
 sudo -u voucher ./venv/bin/pip install SQLAlchemy==2.0.23
 sudo -u voucher ./venv/bin/pip install reportlab==4.0.7
 sudo -u voucher ./venv/bin/pip install requests==2.31.0
 sudo -u voucher ./venv/bin/pip install PyJWT==2.8.0
 sudo -u voucher ./venv/bin/pip install oauthlib==3.2.2
 
+# Instalar driver de banco específico
+if [ "$DB_CHOICE" = "1" ] || [ "$DB_CHOICE" = "2" ]; then
+    echo "Instalando driver MySQL (PyMySQL)..."
+    sudo -u voucher ./venv/bin/pip install PyMySQL==1.1.0
+elif [ "$DB_CHOICE" = "3" ]; then
+    echo "Instalando driver PostgreSQL (psycopg2)..."
+    sudo -u voucher ./venv/bin/pip install psycopg2-binary==2.9.7
+fi
+
 # Criar arquivo de configuração de ambiente
 echo "Criando arquivo de configuração..."
 sudo -u voucher cat > /opt/voucher-app/.env << EOF
 # Configurações da aplicação
 SESSION_SECRET=$SESSION_SECRET
-DATABASE_URL=mysql+pymysql://$DB_USER:$DB_PASSWORD@localhost:3306/$DB_NAME
+DATABASE_URL=$DATABASE_URL
 
 # Configurações do Omada Controller
 OMADA_CONTROLLER_URL=$OMADA_URL
@@ -325,7 +433,13 @@ echo "            🎉 INSTALAÇÃO CONCLUÍDA COM SUCESSO! 🎉"
 echo "========================================================="
 echo ""
 echo "📋 RESUMO DA INSTALAÇÃO:"
-echo "  • Banco de dados: MySQL ($DB_NAME)"
+if [ "$DB_CHOICE" = "1" ]; then
+    echo "  • Banco de dados: MySQL Local ($DB_NAME)"
+elif [ "$DB_CHOICE" = "2" ]; then
+    echo "  • Banco de dados: MySQL Remoto ($DB_HOST:$DB_PORT/$DB_NAME)"
+elif [ "$DB_CHOICE" = "3" ]; then
+    echo "  • Banco de dados: PostgreSQL Remoto ($DB_HOST:$DB_PORT/$DB_NAME)"
+fi
 echo "  • Usuário da aplicação: voucher"
 echo "  • Localização: /opt/voucher-app"
 if [ -n "$DOMAIN_NAME" ]; then
@@ -365,12 +479,29 @@ mkdir -p $BACKUP_DIR
 
 # Backup do banco
 source /opt/voucher-app/.env
-DB_PARAMS=$(echo $DATABASE_URL | sed -n 's/mysql+pymysql:\/\/\([^:]*\):\([^@]*\)@[^:]*:[^\/]*\/\(.*\)/\1 \2 \3/p')
-DB_USER=$(echo $DB_PARAMS | awk '{print $1}')
-DB_PASS=$(echo $DB_PARAMS | awk '{print $2}')
-DB_NAME=$(echo $DB_PARAMS | awk '{print $3}')
 
-mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_DIR/db_$DATE.sql
+if [[ $DATABASE_URL == mysql* ]]; then
+    # MySQL/MariaDB backup
+    DB_PARAMS=$(echo $DATABASE_URL | sed -n 's/mysql+pymysql:\/\/\([^:]*\):\([^@]*\)@\([^:]*\):\([^\/]*\)\/\(.*\)/\1 \2 \3 \4 \5/p')
+    DB_USER=$(echo $DB_PARAMS | awk '{print $1}')
+    DB_PASS=$(echo $DB_PARAMS | awk '{print $2}')
+    DB_HOST=$(echo $DB_PARAMS | awk '{print $3}')
+    DB_PORT=$(echo $DB_PARAMS | awk '{print $4}')
+    DB_NAME=$(echo $DB_PARAMS | awk '{print $5}')
+    
+    mysqldump -h $DB_HOST -P $DB_PORT -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_DIR/db_$DATE.sql
+    
+elif [[ $DATABASE_URL == postgresql* ]]; then
+    # PostgreSQL backup
+    DB_PARAMS=$(echo $DATABASE_URL | sed -n 's/postgresql:\/\/\([^:]*\):\([^@]*\)@\([^:]*\):\([^\/]*\)\/\(.*\)/\1 \2 \3 \4 \5/p')
+    DB_USER=$(echo $DB_PARAMS | awk '{print $1}')
+    DB_PASS=$(echo $DB_PARAMS | awk '{print $2}')
+    DB_HOST=$(echo $DB_PARAMS | awk '{print $3}')
+    DB_PORT=$(echo $DB_PARAMS | awk '{print $4}')
+    DB_NAME=$(echo $DB_PARAMS | awk '{print $5}')
+    
+    PGPASSWORD=$DB_PASS pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME > $BACKUP_DIR/db_$DATE.sql
+fi
 
 # Backup dos arquivos
 tar -czf $BACKUP_DIR/files_$DATE.tar.gz /opt/voucher-app --exclude=/opt/voucher-app/backups

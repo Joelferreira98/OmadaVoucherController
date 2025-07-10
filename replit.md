@@ -158,6 +158,10 @@ Preferred communication style: Simple, everyday language.
 - **Download Script**: Added download_and_install.sh for complete automation from repository
 - **SSL Support**: Optional Let's Encrypt SSL installation during setup
 - **Backup System**: Automatic backup script creation and configuration
+- **Remote Database Support**: Added support for remote MySQL/MariaDB and PostgreSQL databases
+- **Database Choice Menu**: Interactive selection between local MySQL, remote MySQL, or remote PostgreSQL
+- **Connection Testing**: Automatic database connection validation during installation
+- **Driver Management**: Automatic installation of appropriate database drivers (PyMySQL/psycopg2)
 
 ## System Architecture
 
