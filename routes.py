@@ -913,15 +913,12 @@ def generate_vouchers():
                 # Success - get the voucher group ID from Omada
                 omada_group_id = result.get('result', {}).get('id')
                 
-                # Generate local voucher codes for PDF (numbers only)
-                import random
-                import string
-                voucher_codes = []
-                char_set = string.digits  # Only numbers
+                # Important: Due to Omada API limitations, we cannot retrieve the actual voucher codes
+                # The voucher codes are available only in the Omada Controller web interface
+                # We'll store a note for the user to access the real codes from Omada
+                voucher_codes = [f"OMADA-{omada_group_id}-{i+1:03d}" for i in range(form.quantity.data)]
                 
-                for _ in range(form.quantity.data):
-                    code = ''.join(random.choices(char_set, k=code_length))
-                    voucher_codes.append(code)
+                logging.warning(f"Generated placeholder codes. Real voucher codes must be accessed from Omada Controller web interface for group {omada_group_id}")
                 
                 # Create local voucher group record with proper initial status
                 voucher_group = VoucherGroup(

@@ -25,6 +25,16 @@ Preferred communication style: Simple, everyday language.
 - **Plan-Level Configuration**: Code length and limit type configured at voucher plan creation
 - **Simplified Generation**: Removed advanced options from voucher generation form
 
+### Voucher Code Synchronization Issue Resolution
+- **Problem**: PDF voucher codes don't match actual Omada Controller generated codes
+- **Root Cause**: Omada API limitation - voucher code retrieval endpoints are not functional
+- **Solution**: Updated system to generate reference codes and guide users to access real codes from Omada Controller web interface
+- **Implementation**: 
+  - PDF now shows clear instructions to access real codes from Omada Controller
+  - Added Omada Group ID tracking for easy reference
+  - Updated templates to warn users about accessing real codes
+  - Created fallback system with proper user guidance
+
 ## System Architecture
 
 ### Backend Architecture

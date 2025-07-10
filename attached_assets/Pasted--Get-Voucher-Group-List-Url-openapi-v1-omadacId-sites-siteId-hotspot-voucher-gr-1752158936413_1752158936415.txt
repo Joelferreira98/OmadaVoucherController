@@ -1,0 +1,167 @@
+
+
+## Get Voucher Group List
+
+
+**Url**:`/openapi/v1/{omadacId}/sites/{siteId}/hotspot/voucher-groups`
+
+
+**Method**:`GET`
+
+
+**produces**:`application/x-www-form-urlencoded`
+
+
+**consumes**:`*/*`
+
+
+**description**:<p>Get Voucher Group List with the given params.<br/><br/>The interface requires one of the permissions: <br/>Site Hotspot Manager View Only<br/><br/>The possible error code for the interface in the returned body is one of the following error codes (non generic error codes): <br/>-33000  -  This site does not exist.<br/>-33004  -  Operation failed because other operations (site copying, restoring, template synchronizing, etc.) are being performed on this site. Please wait and try again later.<br/>-44111  -  The Grant Type is Invalid.<br/>-44112  -  The access token has expired. Please re-initiate the refreshToken process to obtain the access token.</p>
+
+
+
+**Params**:
+
+
+**Params**:
+
+
+| name | description | in    | require | type | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|omadacId|Omada ID|path|true|string||
+|siteId|Site ID|path|true|string||
+|page|Start page number. Start from 1.|query|true|integer(int32)||
+|pageSize|Number of entries per page. It should be within the range of 1–1000.|query|true|integer(int32)||
+|sorts.name|Sort parameter may be one of asc or desc. Optional parameter. If it is not carried, it means it is not sorted by this field. When there are more than one, the first one takes effect|query|false|string||
+|sorts.createTime|Sort parameter may be one of asc or desc. Optional parameter. If it is not carried, it means it is not sorted by this field. When there are more than one, the first one takes effect|query|false|string||
+|filters.timeStart|Filter query parameters, support field time range: start timestamp (ms).|query|false|integer(int64)||
+|filters.timeEnd|Filter query parameters, support field time range: end timestamp (ms).|query|false|integer(int64)||
+|searchKey|Fuzzy query parameters, support field name|query|false|string||
+
+
+**status**:
+
+
+| code | description | schema |
+| -------- | -------- | ----- | 
+|200|OK|OperationResponseGridVOVoucherGroupOpenApiVO|
+
+
+**Responses**:
+
+
+| name | description | type | schema |
+| -------- | -------- | ----- |----- | 
+|errorCode||integer(int32)|integer(int32)|
+|msg||string||
+|result||GridVOVoucherGroupOpenApiVO|GridVOVoucherGroupOpenApiVO|
+|&emsp;&emsp;totalRows|Total rows of all items.|integer(int64)||
+|&emsp;&emsp;currentPage|Current page number.|integer(int32)||
+|&emsp;&emsp;currentSize|Number of entries per page.|integer(int32)||
+|&emsp;&emsp;data||array|VoucherGroupOpenApiVO|
+|&emsp;&emsp;&emsp;&emsp;id|Voucher group ID|string||
+|&emsp;&emsp;&emsp;&emsp;name|Voucher group ID|string||
+|&emsp;&emsp;&emsp;&emsp;createdTime|Create timestamp for the voucher group, unit: millisecond|integer(int64)||
+|&emsp;&emsp;&emsp;&emsp;creatorName|Role of the creator of the voucher group|string||
+|&emsp;&emsp;&emsp;&emsp;limitType|The limitations of the voucher. It should be a value as follows: 0: Limited Usage Counts, 1: Limited Online Users, 2: Unlimited|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;limitNum|The number of limitations. It should be within the range of 1–999. If Parameter [limitType] is 0 or 1, [limitNum] should not be null.When Parameter [limitType] is 0, [limitNum] represents the maximum number of times this voucher can be used.When Parameter [limitType] is 1, [limitNum] represents the maximum number of users this voucher can be used at the same time.|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;durationType|The duration type of the voucher. It should be a value as follows: 0: Client duration, each client expires after the duration is used. 1: Voucher duration, after reaching the voucher duration, clients using the voucher will expire|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;duration|Duration of one use, unit: minute. It should be within the range of 1–14400000.|integer(int64)||
+|&emsp;&emsp;&emsp;&emsp;timingType|The timing type of the voucher. It should be a value as follows: 0: Timing by time, clients can use vouchers for specified time duration. 1: Timing by usage, clients can use vouchers for the duration of actual usage|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;rateLimit||RateLimitOpenApiVO|RateLimitOpenApiVO|
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;mode|Mode of configure rate limit should be a value as follows: 0: customRateLimit; 1: rateLimitProfileId.|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;rateLimitProfileId|This field represents Rate limit profile ID. Rate limit profile can be created using 'Create rate limit profile' interface, and Rate limit profile ID can be obtained from 'Get rate limit profile list' interface|string||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;customRateLimit||CustomRateLimitOpenApiVO|CustomRateLimitOpenApiVO|
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;downLimitEnable|Whether to enable downlink speed limit.|boolean||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;downLimit|Downlink speed limit in Kbps. The value of limit should be within the range of 0–10485760(Kbps).|integer(int64)||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;upLimitEnable|Whether to enable uplink speed limit.|boolean||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;upLimit|Uplink speed limit in Kbps. The value of limit should be within the range of 0–10485760(Kbps).|integer(int64)||
+|&emsp;&emsp;&emsp;&emsp;trafficLimitEnable|Whether to enable traffic limit|boolean||
+|&emsp;&emsp;&emsp;&emsp;trafficLimit|Traffic limit in MB. It should be within the range of 1–10485760|integer(int64)||
+|&emsp;&emsp;&emsp;&emsp;trafficLimitFrequency|Frequency of traffic limit should be a value as follows: 0: total; 1: daily; 2: weekly; 3: monthly.|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;unitPrice|Price of single voucher. It should be within the range of 1–999999999|string||
+|&emsp;&emsp;&emsp;&emsp;currency|Currency Short Code of voucher. For the values of Currency Short Code, refer to section 5.4.2 of the Open API Access Guide.|string||
+|&emsp;&emsp;&emsp;&emsp;portalNames|Bound portal name list|array|string|
+|&emsp;&emsp;&emsp;&emsp;applyToAllPortals|Is the voucher effective for all portals, including all newly created portals|boolean||
+|&emsp;&emsp;&emsp;&emsp;expirationTime|The timestamp of the expiration of the voucher, unit: millisecond|integer(int64)||
+|&emsp;&emsp;&emsp;&emsp;effectiveTime|The timestamp when the voucher takes effect, unit: millisecond|integer(int64)||
+|&emsp;&emsp;&emsp;&emsp;validityType|The validity type of the voucher. It should be a value as follows: 0: Voucher can be used at any time, parameter [effectiveTime], [expirationTime] and [schedule] should be null. 1: Voucher can be used between the effective time and expiration time, parameter [effectiveTime] and [expirationTime] should not be null, parameter [schedule] should be null. 2: Voucher can be used within a specified time period by schedule, parameter [effectiveTime] and [expirationTime] should be null, parameter [schedule] should not be null|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;schedule||VoucherScheduleOpenApiVO|VoucherScheduleOpenApiVO|
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;type|The type of schedule. It should be a value as follows: 0: Limit time by daily, 1: Limit time by weekly|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;dailyStartHour|The hour of start time, should be within the range of 0-23. When parameter [type] is 0, parameter [dailyStartHour] is required|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;dailyStartMin|The minute of start time, should be within the range of 0-59 When parameter [type] is 0, parameter [dailyStartMin] is required|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;dailyEndHour|The hour of end time, should be within the range of 0-23 When parameter [type] is 0, parameter [dailyEndHour] is required|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;dailyEndMin|The minute of end time, should be within the range of 0-59 When parameter [type] is 0, parameter [dailyEndMin] is required|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;weeklyEnableDays|The effective days of week, array number should be within the range of 1-7, 1 represents Monday, 2 represents Tuesday... 7 represents Sunday. When parameter [type] is 1, parameter [weeklyEnableDays] is required|array|integer|
+|&emsp;&emsp;&emsp;&emsp;logout|Whether the voucher support portal logout functionality|boolean||
+|&emsp;&emsp;&emsp;&emsp;description|Description of the voucher group|string||
+|&emsp;&emsp;&emsp;&emsp;printComments|Print comments of the voucher group|string||
+|&emsp;&emsp;&emsp;&emsp;unusedCount|Unused voucher counts of the voucher group|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;usedCount|Used voucher counts of the voucher group|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;inUseCount|In use voucher counts of the voucher group|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;expiredCount|Expired voucher counts of the voucher group|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;totalCount|Total voucher counts of the voucher group|integer(int32)||
+|&emsp;&emsp;&emsp;&emsp;totalAmount|Total voucher amount of the voucher group|string||
+
+
+**Response Sample**:
+```javascript
+{
+	"errorCode": 0,
+	"msg": "",
+	"result": {
+		"totalRows": 0,
+		"currentPage": 0,
+		"currentSize": 0,
+		"data": [
+			{
+				"id": "",
+				"name": "",
+				"createdTime": 0,
+				"creatorName": "",
+				"limitType": 0,
+				"limitNum": 0,
+				"durationType": 0,
+				"duration": 0,
+				"timingType": 0,
+				"rateLimit": {
+					"mode": 0,
+					"rateLimitProfileId": "",
+					"customRateLimit": {
+						"downLimitEnable": true,
+						"downLimit": 0,
+						"upLimitEnable": true,
+						"upLimit": 0
+					}
+				},
+				"trafficLimitEnable": true,
+				"trafficLimit": 0,
+				"trafficLimitFrequency": 0,
+				"unitPrice": "",
+				"currency": "",
+				"portalNames": [],
+				"applyToAllPortals": true,
+				"expirationTime": 0,
+				"effectiveTime": 0,
+				"validityType": 0,
+				"schedule": {
+					"type": 0,
+					"dailyStartHour": 0,
+					"dailyStartMin": 0,
+					"dailyEndHour": 0,
+					"dailyEndMin": 0,
+					"weeklyEnableDays": []
+				},
+				"logout": true,
+				"description": "",
+				"printComments": "",
+				"unusedCount": 0,
+				"usedCount": 0,
+				"inUseCount": 0,
+				"expiredCount": 0,
+				"totalCount": 0,
+				"totalAmount": ""
+			}
+		]
+	}
+}
+```

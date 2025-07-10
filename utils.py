@@ -95,12 +95,17 @@ def generate_voucher_pdf(voucher_group, voucher_codes: List[str]) -> bytes:
     story.append(table)
     
     # Instructions
-    instructions = """
+    instructions = f"""
+    <b>IMPORTANTE - CÓDIGOS DE VOUCHER:</b><br/>
+    Os códigos reais dos vouchers estão disponíveis no Omada Controller.<br/>
+    Acesse: Painel do Omada Controller → Sites → Hotspot → Grupos de Vouchers<br/>
+    ID do Grupo: {voucher_group.omada_group_id}<br/><br/>
+    
     <b>Instruções de Uso:</b><br/>
     1. Conecte-se à rede Wi-Fi do local<br/>
     2. Abra o navegador e acesse qualquer site<br/>
     3. Será redirecionado para a página de autenticação<br/>
-    4. Digite o código do voucher e clique em "Conectar"<br/>
+    4. Digite o código do voucher real (do Omada Controller) e clique em "Conectar"<br/>
     5. Aguarde a confirmação da conexão<br/><br/>
     <b>Importante:</b> Cada voucher pode ser usado apenas uma vez e tem validade conforme o plano escolhido.
     """

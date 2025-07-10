@@ -269,7 +269,15 @@
                 
                 {% if vg.voucher_codes %}
                 <div class="mt-3">
-                    <h6>Codes de Vouchers ({{ vg.voucher_codes|length }})</h6>
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>ATENÇÃO:</strong> Os códigos mostrados abaixo são códigos de referência. 
+                        Para acessar os códigos reais dos vouchers, acesse o Omada Controller:
+                        <br><strong>Painel → Sites → Hotspot → Grupos de Vouchers</strong>
+                        <br>ID do Grupo: <code>{{ vg.omada_group_id }}</code>
+                    </div>
+                    
+                    <h6>Códigos de Referência ({{ vg.voucher_codes|length }})</h6>
                     <div class="bg-light p-3 rounded">
                         <div class="row">
                             {% for code in vg.voucher_codes[:20] %}

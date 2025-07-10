@@ -315,6 +315,35 @@ class OmadaAPI:
             logging.error(f"Error getting voucher groups: {str(e)}")
             return None
 
+    def get_vouchers_from_group(self, site_id: str, voucher_group_id: str, page: int = 1, page_size: int = 100) -> Optional[Dict]:
+        """Get voucher codes from a specific voucher group"""
+        if not self._ensure_valid_token():
+            return None
+            
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/sites/{site_id}/hotspot/vouchers"
+        
+        # Prepare query parameters to filter by voucher group
+        params = {
+            'page': page,
+            'pageSize': page_size,
+            'filters.voucherGroupId': voucher_group_id
+        }
+        
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            response = self.session.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            result = response.json()
+            logging.info(f"Retrieved vouchers from group {voucher_group_id}: {result.get('result', {}).get('totalRows', 0)} vouchers")
+            return result
+        except Exception as e:
+            logging.error(f"Error getting vouchers from group {voucher_group_id}: {str(e)}")
+            return None
+
     def export_vouchers(self, site_id: str, **filters) -> Optional[Dict]:
         """Export vouchers from Omada Controller"""
         endpoint = f"sites/{site_id}/hotspot/vouchers/export"
