@@ -1,0 +1,46 @@
+<!-- Vendor Sidebar -->
+<nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <div class="sidebar-heading mb-3">
+            <h6 class="text-muted">PAINEL VENDEDOR</h6>
+        </div>
+        
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('vendor_dashboard') }}">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('create_vouchers') }}">
+                    <i class="fas fa-ticket-alt me-2"></i>Criar Vouchers
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('voucher_history') }}">
+                    <i class="fas fa-history me-2"></i>Histórico de Vouchers
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('sales_reports') }}">
+                    <i class="fas fa-chart-bar me-2"></i>Relatórios de Vendas
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('profile') }}">
+                    <i class="fas fa-user me-2"></i>Meu Perfil
+                </a>
+            </li>
+        </ul>
+        
+        <hr>
+        
+        <ul class="nav flex-column mb-2">
+            <li class="nav-item">
+                <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-2"></i>Sair
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
