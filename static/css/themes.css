@@ -73,6 +73,37 @@ main {
     color: var(--text-primary);
 }
 
+/* Sidebar theme support */
+.sidebar {
+    background-color: var(--sidebar-bg) !important;
+    color: var(--text-primary) !important;
+    border-right: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .sidebar {
+    background-color: #f8f9fa !important;
+    border-right: 1px solid #dee2e6;
+}
+
+[data-theme="dark"] .sidebar {
+    background-color: #343a40 !important;
+    border-right: 1px solid #495057;
+}
+
+.sidebar .nav-link {
+    color: var(--text-secondary) !important;
+}
+
+.sidebar .nav-link:hover {
+    color: var(--text-primary) !important;
+    background-color: var(--bg-tertiary) !important;
+}
+
+/* Top bar styling */
+.border-bottom {
+    border-color: var(--border-color) !important;
+}
+
 /* Theme-specific container fixes */
 [data-theme="light"] .container-fluid,
 [data-theme="light"] main {
