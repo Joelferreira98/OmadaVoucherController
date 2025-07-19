@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify, make_response, session
+from flask import render_template, request, redirect, url_for, flash, jsonify, make_response, session, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
@@ -2049,6 +2049,19 @@ def not_found(error):
 def internal_error(error):
     db.session.rollback()
     return render_template('errors/500.html'), 500
+
+# PWA Routes
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory('static', 'manifest.json')
+
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory('static', 'sw.js')
+
+@app.route('/offline')
+def offline():
+    return render_template('offline.html')
 
 # Template filters
 @app.template_filter('currency')

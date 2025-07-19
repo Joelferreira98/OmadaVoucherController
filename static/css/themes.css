@@ -104,6 +104,113 @@ main {
     border-color: var(--border-color) !important;
 }
 
+/* PWA and Mobile Enhancements */
+body.offline {
+    filter: grayscale(50%);
+}
+
+body.offline::before {
+    content: "Modo Offline";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--warning);
+    color: var(--dark);
+    text-align: center;
+    padding: 0.5rem;
+    font-weight: bold;
+    z-index: 9999;
+}
+
+/* Touch-friendly elements */
+@media (hover: none) and (pointer: coarse) {
+    .btn, .nav-link, .card {
+        transition: none;
+    }
+    
+    .btn:hover, .nav-link:hover, .card:hover {
+        transform: none;
+    }
+    
+    .btn:active, .nav-link:active {
+        transform: scale(0.98);
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .sidebar .nav-link {
+        border: 1px solid var(--border-color);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card {
+        border: 2px solid var(--border-color) !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .btn-toolbar,
+    .theme-toggle {
+        display: none !important;
+    }
+    
+    main.col-md-9 {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+}
+
+/* Focus management for accessibility */
+.btn:focus,
+.nav-link:focus,
+.form-control:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* Theme-specific container fixes */
 [data-theme="light"] .container-fluid,
 [data-theme="light"] main {
