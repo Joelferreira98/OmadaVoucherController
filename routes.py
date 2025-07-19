@@ -2063,6 +2063,85 @@ def service_worker():
 def offline():
     return render_template('offline.html')
 
+# Auto-sync API Routes
+@app.route('/api/sync-sites', methods=['POST'])
+@login_required
+def api_sync_sites():
+    """API endpoint for syncing sites with Omada Controller"""
+    if current_user.user_type != 'master':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        # Sync sites from Omada Controller
+        count = sync_sites_from_omada()
+        
+        return jsonify({
+            'success': True,
+            'count': count,
+            'message': f'{count} sites sincronizados'
+        })
+    except Exception as e:
+        logging.error(f"Error syncing sites: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/sync-vouchers/<int:site_id>', methods=['POST'])
+@login_required
+def api_sync_vouchers(site_id):
+    """API endpoint for syncing vouchers with Omada Controller"""
+    try:
+        # Check if user has access to this site
+        if current_user.user_type == 'admin':
+            admin_site = AdminSite.query.filter_by(admin_id=current_user.id, site_id=site_id).first()
+            if not admin_site:
+                return jsonify({'error': 'Site access denied'}), 403
+        elif current_user.user_type == 'vendor':
+            vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id, site_id=site_id).first()
+            if not vendor_site:
+                return jsonify({'error': 'Site access denied'}), 403
+        
+        # Sync voucher statuses from Omada Controller
+        count = sync_voucher_statuses_from_omada(site_id)
+        
+        return jsonify({
+            'success': True,
+            'count': count,
+            'message': f'{count} vouchers sincronizados'
+        })
+    except Exception as e:
+        logging.error(f"Error syncing vouchers: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/sync-status')
+@login_required
+def api_sync_status():
+    """Get current sync status and statistics"""
+    try:
+        # Get last sync times from database or cache
+        stats = {
+            'sites_count': Site.query.count(),
+            'voucher_groups_count': VoucherGroup.query.count(),
+            'last_site_sync': None,  # Could be stored in a sync log table
+            'last_voucher_sync': None,
+            'sync_errors': 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        logging.error(f"Error getting sync status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Template filters
 @app.template_filter('currency')
 def currency_filter(value):

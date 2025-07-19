@@ -220,6 +220,28 @@ Preferred communication style: Simple, everyday language.
   - Optimized CSS for different screen sizes
   - Reduced motion preferences respected
 
+### Auto-Sync System with Omada Controller (July 19, 2025)
+- **Real-Time Synchronization**: Automatic data sync every minute
+  - Sites synchronization from Omada Controller
+  - Voucher status updates and real-time monitoring
+  - Automatic error handling and retry mechanism
+  - User-configurable sync enable/disable functionality
+- **Sync Status Interface**:
+  - Fixed sync status indicator with dropdown controls
+  - Manual sync options for sites and vouchers separately
+  - Last sync time tracking and error count monitoring
+  - Visual feedback with loading states and notifications
+- **API Endpoints**: 
+  - /api/sync-sites for master users to sync site data
+  - /api/sync-vouchers/{site_id} for voucher status updates
+  - /api/sync-status for current synchronization statistics
+  - Role-based access control for sync operations
+- **Performance Features**:
+  - Automatic pause when browser tab is hidden
+  - Error threshold management (max 5 errors before auto-disable)
+  - localStorage persistence for user sync preferences
+  - Mobile-optimized sync controls and responsive design
+
 ### VPS Deployment Preparation (July 10, 2025)
 - **Production Ready**: Application tested and optimized for deployment
 - **Theme System**: Fully functional light/dark mode with proper contrast

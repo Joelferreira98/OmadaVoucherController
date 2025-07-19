@@ -76,6 +76,36 @@ main.col-md-9 {
     .mobile-menu-toggle {
         display: block !important;
     }
+    
+    /* Adjust sync status for mobile */
+    #sync-status-container {
+        top: 5px !important;
+        right: 60px !important;
+    }
+    
+    #sync-status-container .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Auto-sync status styling */
+#sync-status-container .btn {
+    transition: all 0.3s ease;
+}
+
+#sync-status-container .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.fa-spin {
+    animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .mobile-sidebar-overlay {
