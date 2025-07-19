@@ -72,17 +72,28 @@
                                             </span>
                                         </td>
                                         <td class="py-3 text-end">
-                                            {% if vendor.is_active %}
-                                                <button class="btn btn-sm btn-outline-warning" 
-                                                        onclick="toggleVendorStatus({{ vendor.id }}, false)">
-                                                    <i class="fas fa-ban small me-1"></i>Desativar
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ url_for('edit_vendor', user_id=vendor.id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-edit small me-1"></i>Editar
+                                                </a>
+                                                <a href="{{ url_for('change_vendor_password', user_id=vendor.id) }}" class="btn btn-sm btn-outline-warning">
+                                                    <i class="fas fa-key small me-1"></i>Senha
+                                                </a>
+                                                {% if vendor.is_active %}
+                                                    <button class="btn btn-sm btn-outline-warning" 
+                                                            onclick="toggleVendorStatus({{ vendor.id }}, false)">
+                                                        <i class="fas fa-ban small me-1"></i>Desativar
+                                                    </button>
+                                                {% else %}
+                                                    <button class="btn btn-sm btn-outline-success" 
+                                                            onclick="toggleVendorStatus({{ vendor.id }}, true)">
+                                                        <i class="fas fa-check small me-1"></i>Ativar
+                                                    </button>
+                                                {% endif %}
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteVendor({{ vendor.id }}, '{{ vendor.username }}')">
+                                                    <i class="fas fa-trash small me-1"></i>Excluir
                                                 </button>
-                                            {% else %}
-                                                <button class="btn btn-sm btn-outline-success" 
-                                                        onclick="toggleVendorStatus({{ vendor.id }}, true)">
-                                                    <i class="fas fa-check small me-1"></i>Ativar
-                                                </button>
-                                            {% endif %}
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -175,6 +186,23 @@ function toggleVendorStatus(vendorId, status) {
         form.appendChild(statusInput);
         form.appendChild(csrfToken);
         
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteVendor(vendorId, vendorName) {
+    if (confirm(`Tem certeza que deseja excluir o vendedor "${vendorName}"?\n\nEsta ação não pode ser desfeita.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/delete_vendor/${vendorId}`;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = document.querySelector('[name=csrf_token]').value;
+        
+        form.appendChild(csrfToken);
         document.body.appendChild(form);
         form.submit();
     }

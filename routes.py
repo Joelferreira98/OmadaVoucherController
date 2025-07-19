@@ -76,6 +76,36 @@ def dashboard():
         flash('Tipo de usuário inválido.', 'error')
         return redirect(url_for('login'))
 
+# Generic User Routes
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """User profile page with password change functionality"""
+    from forms import ChangePasswordForm
+    form = ChangePasswordForm()
+    
+    if form.validate_on_submit():
+        if not check_password_hash(current_user.password_hash, form.current_password.data):
+            flash('Senha atual incorreta.', 'error')
+            return render_template('profile.html', form=form, user=current_user)
+        
+        if form.new_password.data != form.confirm_password.data:
+            flash('Nova senha e confirmação não coincidem.', 'error')
+            return render_template('profile.html', form=form, user=current_user)
+        
+        try:
+            current_user.password_hash = generate_password_hash(form.new_password.data)
+            db.session.commit()
+            flash('Senha alterada com sucesso.', 'success')
+            logging.info(f"Password changed for user {current_user.username}")
+            return redirect(url_for('profile'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Erro ao alterar senha.', 'error')
+            logging.error(f"Error changing password for user {current_user.id}: {str(e)}")
+    
+    return render_template('profile.html', form=form, user=current_user)
+
 # Master Routes
 @app.route('/master')
 @login_required
@@ -293,6 +323,116 @@ def test_connection():
             return jsonify({'success': False, 'message': 'Falha na autenticação. Verifique suas credenciais.'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erro na conexão: {str(e)}'})
+
+# User CRUD Routes for Master
+@app.route('/master/edit_admin/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def edit_admin(user_id):
+    if current_user.user_type != 'master':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.user_type != 'admin':
+        flash('Usuário não é um administrador.', 'error')
+        return redirect(url_for('manage_admins'))
+    
+    from forms import UserEditForm
+    form = UserEditForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Check if username exists for another user
+            existing_user = User.query.filter(User.username == form.username.data, User.id != user_id).first()
+            if existing_user:
+                flash('Nome de usuário já existe.', 'error')
+                return render_template('master/edit_admin.html', form=form, user=user)
+            
+            # Check if email exists for another user
+            existing_email = User.query.filter(User.email == form.email.data, User.id != user_id).first()
+            if existing_email:
+                flash('Email já existe.', 'error')
+                return render_template('master/edit_admin.html', form=form, user=user)
+            
+            user.username = form.username.data
+            user.email = form.email.data
+            user.user_type = form.user_type.data
+            user.is_active = form.is_active.data
+            
+            db.session.commit()
+            flash(f'Administrador {user.username} atualizado com sucesso.', 'success')
+            return redirect(url_for('manage_admins'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Erro ao atualizar administrador.', 'error')
+            logging.error(f"Error updating admin {user_id}: {str(e)}")
+    
+    # Pre-populate form
+    form.username.data = user.username
+    form.email.data = user.email
+    form.user_type.data = user.user_type
+    form.is_active.data = user.is_active
+    
+    return render_template('master/edit_admin.html', form=form, user=user)
+
+@app.route('/master/delete_admin/<int:user_id>', methods=['POST'])
+@login_required
+def delete_admin(user_id):
+    if current_user.user_type != 'master':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.user_type != 'admin':
+        flash('Usuário não é um administrador.', 'error')
+        return redirect(url_for('manage_admins'))
+    
+    try:
+        username = user.username
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'Administrador {username} removido com sucesso.', 'success')
+        logging.info(f"Admin {username} deleted by {current_user.username}")
+    except Exception as e:
+        db.session.rollback()
+        flash('Erro ao remover administrador.', 'error')
+        logging.error(f"Error deleting admin {user_id}: {str(e)}")
+    
+    return redirect(url_for('manage_admins'))
+
+@app.route('/master/change_admin_password/<int:user_id>', methods=['GET', 'POST'])
+@login_required  
+def change_admin_password(user_id):
+    if current_user.user_type != 'master':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.user_type != 'admin':
+        flash('Usuário não é um administrador.', 'error')
+        return redirect(url_for('manage_admins'))
+    
+    from forms import AdminChangePasswordForm
+    form = AdminChangePasswordForm()
+    
+    if form.validate_on_submit():
+        if form.new_password.data != form.confirm_password.data:
+            flash('Nova senha e confirmação não coincidem.', 'error')
+            return render_template('master/change_admin_password.html', form=form, user=user)
+        
+        try:
+            user.password_hash = generate_password_hash(form.new_password.data)
+            db.session.commit()
+            flash(f'Senha do administrador {user.username} alterada com sucesso.', 'success')
+            logging.info(f"Password changed for admin {user.username} by {current_user.username}")
+            return redirect(url_for('manage_admins'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Erro ao alterar senha.', 'error')
+            logging.error(f"Error changing password for admin {user_id}: {str(e)}")
+    
+    return render_template('master/change_admin_password.html', form=form, user=user)
 
 # Admin Routes
 @app.route('/admin/site_selection')
@@ -520,6 +660,145 @@ def toggle_vendor_status():
         flash('Erro ao alterar status do vendedor.', 'error')
     
     return redirect(url_for('manage_vendors'))
+
+# Vendor CRUD Routes for Admins
+@app.route('/admin/edit_vendor/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def edit_vendor(user_id):
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.user_type != 'vendor':
+        flash('Usuário não é um vendedor.', 'error')
+        return redirect(url_for('manage_vendors'))
+    
+    # Verify vendor belongs to current site
+    vendor_site = VendorSite.query.filter_by(vendor_id=user_id, site_id=current_site_id).first()
+    if not vendor_site:
+        flash('Vendedor não pertence ao site atual.', 'error')
+        return redirect(url_for('manage_vendors'))
+    
+    from forms import UserEditForm
+    form = UserEditForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Check if username exists for another user
+            existing_user = User.query.filter(User.username == form.username.data, User.id != user_id).first()
+            if existing_user:
+                flash('Nome de usuário já existe.', 'error')
+                return render_template('admin/edit_vendor.html', form=form, user=user)
+            
+            # Check if email exists for another user
+            existing_email = User.query.filter(User.email == form.email.data, User.id != user_id).first()
+            if existing_email:
+                flash('Email já existe.', 'error')
+                return render_template('admin/edit_vendor.html', form=form, user=user)
+            
+            user.username = form.username.data
+            user.email = form.email.data
+            user.is_active = form.is_active.data
+            
+            db.session.commit()
+            flash(f'Vendedor {user.username} atualizado com sucesso.', 'success')
+            return redirect(url_for('manage_vendors'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('Erro ao atualizar vendedor.', 'error')
+            logging.error(f"Error updating vendor {user_id}: {str(e)}")
+    
+    # Pre-populate form
+    form.username.data = user.username
+    form.email.data = user.email
+    form.user_type.data = user.user_type
+    form.is_active.data = user.is_active
+    
+    return render_template('admin/edit_vendor.html', form=form, user=user)
+
+@app.route('/admin/delete_vendor/<int:user_id>', methods=['POST'])
+@login_required
+def delete_vendor(user_id):
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.user_type != 'vendor':
+        flash('Usuário não é um vendedor.', 'error')
+        return redirect(url_for('manage_vendors'))
+    
+    # Verify vendor belongs to current site
+    vendor_site = VendorSite.query.filter_by(vendor_id=user_id, site_id=current_site_id).first()
+    if not vendor_site:
+        flash('Vendedor não pertence ao site atual.', 'error')
+        return redirect(url_for('manage_vendors'))
+    
+    try:
+        username = user.username
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'Vendedor {username} removido com sucesso.', 'success')
+        logging.info(f"Vendor {username} deleted by admin {current_user.username}")
+    except Exception as e:
+        db.session.rollback()
+        flash('Erro ao remover vendedor.', 'error')
+        logging.error(f"Error deleting vendor {user_id}: {str(e)}")
+    
+    return redirect(url_for('manage_vendors'))
+
+@app.route('/admin/change_vendor_password/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def change_vendor_password(user_id):
+    if current_user.user_type != 'admin':
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    current_site_id = session.get('selected_site_id')
+    if not current_site_id:
+        return redirect(url_for('admin_site_selection'))
+    
+    user = User.query.get_or_404(user_id)
+    if user.user_type != 'vendor':
+        flash('Usuário não é um vendedor.', 'error')
+        return redirect(url_for('manage_vendors'))
+    
+    # Verify vendor belongs to current site
+    vendor_site = VendorSite.query.filter_by(vendor_id=user_id, site_id=current_site_id).first()
+    if not vendor_site:
+        flash('Vendedor não pertence ao site atual.', 'error')
+        return redirect(url_for('manage_vendors'))
+    
+    from forms import AdminChangePasswordForm
+    form = AdminChangePasswordForm()
+    
+    if form.validate_on_submit():
+        if form.new_password.data != form.confirm_password.data:
+            flash('Nova senha e confirmação não coincidem.', 'error')
+            return render_template('admin/change_vendor_password.html', form=form, user=user)
+        
+        try:
+            user.password_hash = generate_password_hash(form.new_password.data)
+            db.session.commit()
+            flash(f'Senha do vendedor {user.username} alterada com sucesso.', 'success')
+            logging.info(f"Password changed for vendor {user.username} by admin {current_user.username}")
+            return redirect(url_for('manage_vendors'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Erro ao alterar senha.', 'error')
+            logging.error(f"Error changing password for vendor {user_id}: {str(e)}")
+    
+    return render_template('admin/change_vendor_password.html', form=form, user=user)
 
 @app.route('/admin/plans')
 @login_required

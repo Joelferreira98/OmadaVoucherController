@@ -50,3 +50,21 @@ class OmadaConfigForm(FlaskForm):
 class CashRegisterForm(FlaskForm):
     notes = TextAreaField('Observações', widget=TextArea(), validators=[Optional(), Length(max=1000)])
     remove_expired = BooleanField('Remover vouchers expirados do Omada Controller', default=True)
+
+class UserEditForm(FlaskForm):
+    username = StringField('Usuário', validators=[DataRequired(), Length(min=3, max=80)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    user_type = SelectField('Tipo de Usuário', choices=[
+        ('admin', 'Administrador'),
+        ('vendor', 'Vendedor')
+    ], validators=[DataRequired()])
+    is_active = BooleanField('Usuário Ativo', default=True)
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField('Senha Atual', validators=[DataRequired(), Length(min=4)])
+    new_password = PasswordField('Nova Senha', validators=[DataRequired(), Length(min=4)])
+    confirm_password = PasswordField('Confirmar Nova Senha', validators=[DataRequired(), Length(min=4)])
+
+class AdminChangePasswordForm(FlaskForm):
+    new_password = PasswordField('Nova Senha', validators=[DataRequired(), Length(min=4)])
+    confirm_password = PasswordField('Confirmar Nova Senha', validators=[DataRequired(), Length(min=4)])

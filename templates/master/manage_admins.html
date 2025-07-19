@@ -62,9 +62,20 @@
                                             {% endif %}
                                         </td>
                                         <td class="py-3 text-end">
-                                            <button class="btn btn-sm btn-outline-primary" onclick="assignSites({{ admin.id }}, '{{ admin.username }}')">
-                                                <i class="fas fa-building small me-1"></i>Atribuir Sites
-                                            </button>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" onclick="assignSites({{ admin.id }}, '{{ admin.username }}')">
+                                                    <i class="fas fa-building small me-1"></i>Sites
+                                                </button>
+                                                <a href="{{ url_for('edit_admin', user_id=admin.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-edit small me-1"></i>Editar
+                                                </a>
+                                                <a href="{{ url_for('change_admin_password', user_id=admin.id) }}" class="btn btn-sm btn-outline-warning">
+                                                    <i class="fas fa-key small me-1"></i>Senha
+                                                </a>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteAdmin({{ admin.id }}, '{{ admin.username }}')">
+                                                    <i class="fas fa-trash small me-1"></i>Excluir
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -196,6 +207,23 @@ function assignSites(adminId, adminName) {
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('assignSitesModal'));
     modal.show();
+}
+
+function deleteAdmin(adminId, adminName) {
+    if (confirm(`Tem certeza que deseja excluir o administrador "${adminName}"?\n\nEsta ação não pode ser desfeita.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/master/delete_admin/${adminId}`;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = document.querySelector('[name=csrf_token]').value;
+        
+        form.appendChild(csrfToken);
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 </script>
 {% endblock %}
