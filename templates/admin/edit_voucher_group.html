@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Grupo de Vouchers{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Editar Grupo de Vouchers</h1>
+                    <p class="text-muted mb-0 mt-1">{{ voucher_group.plan.name }} - {{ voucher_group.quantity }} vouchers</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('voucher_history') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" id="editVoucherForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Atenção:</strong> Modificar vouchers já criados no Omada Controller pode afetar seu funcionamento. 
+                            Use esta funcionalidade apenas quando necessário.
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.quantity.label(class="form-label fw-medium") }}
+                                {{ form.quantity(class="form-control", readonly=True) }}
+                                <div class="form-text">A quantidade não pode ser alterada após a criação</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.status.label(class="form-label fw-medium") }}
+                                {{ form.status(class="form-control") }}
+                                {% if form.status.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.status.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-medium">Plano Associado</label>
+                                <input type="text" class="form-control" value="{{ voucher_group.plan.name }}" readonly>
+                                <div class="form-text">O plano não pode ser alterado após a criação</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-medium">Valor Total</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="text" class="form-control" value="{{ '%.2f'|format(voucher_group.total_value) }}" readonly>
+                                </div>
+                                <div class="form-text">Calculado automaticamente: {{ voucher_group.quantity }} × R$ {{ '%.2f'|format(voucher_group.plan.price) }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">ID do Grupo no Omada</label>
+                            <input type="text" class="form-control" value="{{ voucher_group.omada_group_id or 'Não disponível' }}" readonly>
+                            <div class="form-text">ID gerado pelo Omada Controller</div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-dark px-4">
+                                <i class="fas fa-save me-1"></i>Salvar Alterações
+                            </button>
+                            <a href="{{ url_for('voucher_history') }}" class="btn btn-outline-secondary px-4">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-light border-0">
+                    <h6 class="card-title mb-0 fw-medium">
+                        <i class="fas fa-chart-pie me-2 text-primary"></i>Status dos Vouchers
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Não Utilizados</small>
+                            <span class="badge bg-secondary">{{ voucher_group.unused_count or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-secondary" 
+                                 style="width: {{ ((voucher_group.unused_count or 0) / voucher_group.quantity * 100) if voucher_group.quantity > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Em Uso</small>
+                            <span class="badge bg-warning">{{ voucher_group.in_use_count or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-warning" 
+                                 style="width: {{ ((voucher_group.in_use_count or 0) / voucher_group.quantity * 100) if voucher_group.quantity > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Utilizados</small>
+                            <span class="badge bg-success">{{ voucher_group.used_count or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" 
+                                 style="width: {{ ((voucher_group.used_count or 0) / voucher_group.quantity * 100) if voucher_group.quantity > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Expirados</small>
+                            <span class="badge bg-danger">{{ voucher_group.expired_count or 0 }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-danger" 
+                                 style="width: {{ ((voucher_group.expired_count or 0) / voucher_group.quantity * 100) if voucher_group.quantity > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0">
+                    <h6 class="card-title mb-0 fw-medium">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>Informações
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Criado por</small>
+                        <span class="fw-medium">{{ voucher_group.created_by.username }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Data de Criação</small>
+                        <span class="fw-medium">{{ voucher_group.created_at.strftime('%d/%m/%Y às %H:%M') }}</span>
+                    </div>
+                    
+                    {% if voucher_group.last_sync %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Última Sincronização</small>
+                        <span class="fw-medium">{{ voucher_group.last_sync.strftime('%d/%m/%Y às %H:%M') }}</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Site</small>
+                        <span class="fw-medium">{{ voucher_group.site.name }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

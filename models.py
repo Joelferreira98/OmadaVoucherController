@@ -10,6 +10,13 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     user_type = db.Column(db.String(20), nullable=False)  # master, admin, vendor
     is_active = db.Column(db.Boolean, default=True)
+    
+    @property
+    def is_authenticated(self):
+        return True
+    
+    def get_id(self):
+        return str(self.id)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships

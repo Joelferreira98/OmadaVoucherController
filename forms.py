@@ -68,3 +68,11 @@ class ChangePasswordForm(FlaskForm):
 class AdminChangePasswordForm(FlaskForm):
     new_password = PasswordField('Nova Senha', validators=[DataRequired(), Length(min=4)])
     confirm_password = PasswordField('Confirmar Nova Senha', validators=[DataRequired(), Length(min=4)])
+
+class VoucherGroupEditForm(FlaskForm):
+    quantity = IntegerField('Quantidade', validators=[DataRequired(), NumberRange(min=1)], render_kw={'readonly': True})
+    status = SelectField('Status', choices=[
+        ('generated', 'Gerado'),
+        ('active', 'Ativo'),
+        ('expired', 'Expirado')
+    ], validators=[DataRequired()])

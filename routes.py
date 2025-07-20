@@ -6,7 +6,9 @@ import logging
 
 from app import app, db, login_manager
 from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup, OmadaConfig, CashRegister
-from forms import LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, OmadaConfigForm, CashRegisterForm
+from forms import (LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, 
+                  OmadaConfigForm, CashRegisterForm, UserEditForm, 
+                  ChangePasswordForm, AdminChangePasswordForm, VoucherGroupEditForm)
 from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada, has_permission, check_site_access, get_accessible_sites, can_manage_user
 from omada_api import omada_api
 
@@ -2190,6 +2192,44 @@ def api_sync_status():
             'success': False,
             'error': str(e)
         }), 500
+
+# CRUD Routes for Plans  
+@app.route('/admin/plans/<int:plan_id>/delete', methods=['POST'])
+@login_required
+def delete_plan(plan_id):
+    """Delete voucher plan"""
+    if not has_permission('admin'):
+        return jsonify({'success': False, 'error': 'Acesso negado'}), 403
+    
+    plan = VoucherPlan.query.get_or_404(plan_id)
+    
+    # Check if admin has access to this plan's site
+    if current_user.user_type == 'admin':
+        admin_site = AdminSite.query.filter_by(
+            admin_id=current_user.id, 
+            site_id=plan.site_id
+        ).first()
+        if not admin_site:
+            return jsonify({'success': False, 'error': 'Acesso negado'}), 403
+    
+    # Check if plan has associated voucher groups
+    voucher_groups = VoucherGroup.query.filter_by(plan_id=plan_id).count()
+    if voucher_groups > 0:
+        return jsonify({
+            'success': False, 
+            'error': f'Não é possível excluir o plano. Existem {voucher_groups} grupos de vouchers associados.'
+        }), 400
+    
+    try:
+        plan_name = plan.name
+        db.session.delete(plan)
+        db.session.commit()
+        logging.info(f"Plan {plan_name} deleted by {current_user.username}")
+        return jsonify({'success': True, 'message': f'Plano "{plan_name}" excluído com sucesso'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting plan {plan_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Template filters
 @app.template_filter('currency')

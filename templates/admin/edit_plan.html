@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Plano - {{ plan.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-dark fw-bold">Editar Plano</h1>
+                    <p class="text-muted mb-0 mt-1">{{ plan.name }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('manage_plans') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" id="editPlanForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                {{ form.name.label(class="form-label fw-medium") }}
+                                {{ form.name(class="form-control") }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.is_active.label(class="form-label fw-medium d-block") }}
+                                <div class="form-check form-switch mt-2">
+                                    {{ form.is_active(class="form-check-input") }}
+                                    <label class="form-check-label" for="{{ form.is_active.id }}">
+                                        Plano Ativo
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.duration.label(class="form-label fw-medium") }}
+                                {{ form.duration(class="form-control") }}
+                                {% if form.duration.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.duration.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.duration_unit.label(class="form-label fw-medium") }}
+                                {{ form.duration_unit(class="form-control") }}
+                                {% if form.duration_unit.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.duration_unit.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.price.label(class="form-label fw-medium") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    {{ form.price(class="form-control", step="0.01") }}
+                                </div>
+                                {% if form.price.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.price.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.data_quota.label(class="form-label fw-medium") }}
+                                <div class="input-group">
+                                    {{ form.data_quota(class="form-control", placeholder="Deixe vazio para ilimitado") }}
+                                    <span class="input-group-text">MB</span>
+                                </div>
+                                {% if form.data_quota.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.data_quota.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.download_speed.label(class="form-label fw-medium") }}
+                                <div class="input-group">
+                                    {{ form.download_speed(class="form-control", placeholder="Deixe vazio para ilimitado") }}
+                                    <span class="input-group-text">Mbps</span>
+                                </div>
+                                {% if form.download_speed.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.download_speed.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.upload_speed.label(class="form-label fw-medium") }}
+                                <div class="input-group">
+                                    {{ form.upload_speed(class="form-control", placeholder="Deixe vazio para ilimitado") }}
+                                    <span class="input-group-text">Mbps</span>
+                                </div>
+                                {% if form.upload_speed.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.upload_speed.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.code_length.label(class="form-label fw-medium") }}
+                                {{ form.code_length(class="form-control") }}
+                                <div class="form-text">Comprimento dos códigos de voucher (6-10 dígitos)</div>
+                                {% if form.code_length.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.code_length.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.limit_type.label(class="form-label fw-medium") }}
+                                {{ form.limit_type(class="form-control", id="limitType") }}
+                                {% if form.limit_type.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.limit_type.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row" id="limitNumRow" style="display: none;">
+                            <div class="col-md-6 mb-3">
+                                {{ form.limit_num.label(class="form-label fw-medium") }}
+                                {{ form.limit_num(class="form-control") }}
+                                <div class="form-text">Número de usos ou usuários simultâneos</div>
+                                {% if form.limit_num.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.limit_num.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-dark px-4">
+                                <i class="fas fa-save me-1"></i>Salvar Alterações
+                            </button>
+                            <a href="{{ url_for('manage_plans') }}" class="btn btn-outline-secondary px-4">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0">
+                    <h6 class="card-title mb-0 fw-medium">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>Informações do Plano
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Status Atual</small>
+                        <span class="badge bg-{{ 'success' if plan.is_active else 'secondary' }} fs-6">
+                            {{ 'Ativo' if plan.is_active else 'Inativo' }}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Criado em</small>
+                        <span class="fw-medium">{{ plan.created_at.strftime('%d/%m/%Y às %H:%M') }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Vouchers Gerados</small>
+                        <span class="fw-medium">{{ plan.voucher_groups|length }} grupos</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Duração Formatada</small>
+                        <span class="fw-medium">{{ plan.duration|duration(plan.duration_unit) }}</span>
+                    </div>
+
+                    {% if plan.data_quota %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Franquia</small>
+                        <span class="fw-medium">{{ plan.data_quota }} MB</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const limitType = document.getElementById('limitType');
+    const limitNumRow = document.getElementById('limitNumRow');
+    
+    function toggleLimitNum() {
+        if (limitType.value === '0' || limitType.value === '1') {
+            limitNumRow.style.display = 'block';
+        } else {
+            limitNumRow.style.display = 'none';
+        }
+    }
+    
+    // Initialize
+    toggleLimitNum();
+    
+    // Listen for changes
+    limitType.addEventListener('change', toggleLimitNum);
+});
+</script>
+{% endblock %}

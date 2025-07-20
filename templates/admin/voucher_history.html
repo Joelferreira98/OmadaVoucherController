@@ -107,6 +107,20 @@
                                         </td>
                                         <td class="py-3 text-end">
                                             <div class="d-flex gap-1 justify-content-end flex-column flex-sm-row">
+                                                {% if current_user.user_type in ['admin', 'master'] %}
+                                                    <a href="{{ url_for('edit_voucher_group', group_id=vg.id) }}" 
+                                                       class="btn btn-sm btn-outline-secondary" title="Editar">
+                                                        <i class="fas fa-edit small"></i>
+                                                        <span class="d-sm-none ms-1">Editar</span>
+                                                    </a>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-danger" 
+                                                            onclick="deleteVoucherGroup({{ vg.id }}, '{{ vg.plan.name }}', {{ vg.quantity }})" 
+                                                            title="Excluir Grupo">
+                                                        <i class="fas fa-trash small"></i>
+                                                        <span class="d-sm-none ms-1">Excluir</span>
+                                                    </button>
+                                                {% endif %}
                                                 <a href="{{ url_for('download_vouchers', voucher_group_id=vg.id, format='a4') }}" 
                                                    class="btn btn-sm btn-outline-secondary" title="Download PDF A4">
                                                     <i class="fas fa-download small"></i>
@@ -149,6 +163,7 @@
     {% endif %}
 </div>
 
+<script src="{{ url_for('static', filename='js/crud-functions.js') }}"></script>
 <script>
 function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');

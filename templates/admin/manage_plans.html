@@ -78,13 +78,15 @@
                                         <td class="py-3 text-end">
                                             <div class="d-flex gap-1 justify-content-end">
                                                 <a href="{{ url_for('edit_plan', plan_id=plan.id) }}" 
-                                                   class="btn btn-sm btn-outline-secondary">
+                                                   class="btn btn-sm btn-outline-secondary" title="Editar Plano">
                                                     <i class="fas fa-edit small"></i>
                                                 </a>
                                                 <button type="button" 
-                                                        class="btn btn-sm btn-outline-{{ 'danger' if plan.is_active else 'success' }}"
-                                                        onclick="togglePlanStatus({{ plan.id }}, {{ 'false' if plan.is_active else 'true' }})">
-                                                    <i class="fas fa-{{ 'pause' if plan.is_active else 'play' }} small"></i>
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        onclick="deletePlan({{ plan.id }}, '{{ plan.name }}')" 
+                                                        title="Excluir Plano"
+                                                        {% if plan.total_vouchers > 0 %}disabled{% endif %}>
+                                                    <i class="fas fa-trash small"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -114,6 +116,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/crud-functions.js') }}"></script>
 <script>
 function togglePlanStatus(planId, status) {
     const action = status ? 'ativar' : 'desativar';
