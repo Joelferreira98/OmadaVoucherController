@@ -8,7 +8,7 @@ from app import app, db, login_manager
 from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup, OmadaConfig, CashRegister
 from datetime import datetime
 from forms import LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, OmadaConfigForm, CashRegisterForm
-from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada
+from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada, has_permission, check_site_access, get_accessible_sites, can_manage_user
 from omada_api import omada_api
 
 @login_manager.user_loader
@@ -110,7 +110,8 @@ def profile():
 @app.route('/master')
 @login_required
 def master_dashboard():
-    if current_user.user_type != 'master':
+    # Only masters can access this - hierarchical permission
+    if not has_permission('master'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -476,9 +477,10 @@ def select_site(site_id):
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin')
-@login_required
+@login_required  
 def admin_dashboard():
-    if current_user.user_type != 'admin':
+    # Admin or Master can access - hierarchical permission
+    if not has_permission('admin'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -541,7 +543,8 @@ def admin_dashboard():
 @app.route('/admin/vendors')
 @login_required
 def manage_vendors():
-    if current_user.user_type != 'admin':
+    # Admin or Master can manage vendors - hierarchical permission
+    if not has_permission('admin'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -574,7 +577,8 @@ def manage_vendors():
 @app.route('/admin/create_vendor', methods=['POST'])
 @login_required
 def create_vendor():
-    if current_user.user_type != 'admin':
+    # Admin or Master can create vendors - hierarchical permission
+    if not has_permission('admin'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -725,7 +729,8 @@ def edit_vendor(user_id):
 @app.route('/admin/delete_vendor/<int:user_id>', methods=['POST'])
 @login_required
 def delete_vendor(user_id):
-    if current_user.user_type != 'admin':
+    # Admin or Master can delete vendors - hierarchical permission
+    if not has_permission('admin'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -760,7 +765,8 @@ def delete_vendor(user_id):
 @app.route('/admin/change_vendor_password/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def change_vendor_password(user_id):
-    if current_user.user_type != 'admin':
+    # Admin or Master can change vendor passwords - hierarchical permission
+    if not has_permission('admin'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -1459,7 +1465,8 @@ def cash_register_history():
 @app.route('/vendor')
 @login_required
 def vendor_dashboard():
-    if current_user.user_type != 'vendor':
+    # Vendor, Admin or Master can access - hierarchical permission
+    if not has_permission('vendor'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -1505,7 +1512,8 @@ def vendor_dashboard():
 @app.route('/vendor/create_vouchers')
 @login_required
 def create_vouchers():
-    if current_user.user_type != 'vendor':
+    # Vendor, Admin or Master can create vouchers - hierarchical permission
+    if not has_permission('vendor'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -1534,7 +1542,8 @@ def create_vouchers():
 @app.route('/vendor/generate_vouchers', methods=['POST'])
 @login_required
 def generate_vouchers():
-    if current_user.user_type != 'vendor':
+    # Vendor, Admin or Master can generate vouchers - hierarchical permission
+    if not has_permission('vendor'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
