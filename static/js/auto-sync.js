@@ -194,12 +194,17 @@ class AutoSyncManager {
                 }
             }
             
-            // Try to sync vouchers for current site
-            try {
-                const vouchersResult = await this.syncVouchers(false);
-                syncCount += vouchersResult.count || 0;
-            } catch (error) {
-                console.log('Vouchers sync skipped or failed:', error.message);
+            // Try to sync vouchers for current site (only if we have a site)
+            const currentSite = this.getCurrentSiteId();
+            if (currentSite) {
+                try {
+                    const vouchersResult = await this.syncVouchers(false);
+                    syncCount += vouchersResult.count || 0;
+                } catch (error) {
+                    console.log('Vouchers sync skipped or failed:', error.message);
+                }
+            } else {
+                console.log('No site selected, skipping voucher sync');
             }
             
             this.syncErrors = 0;
@@ -364,7 +369,7 @@ class AutoSyncManager {
     getCurrentSiteId() {
         // Try to get site ID from page data or URL
         const siteSelect = document.getElementById('site_id');
-        if (siteSelect && siteSelect.value) {
+        if (siteSelect && siteSelect.value && siteSelect.value !== '') {
             return siteSelect.value;
         }
         
@@ -374,16 +379,35 @@ class AutoSyncManager {
             return pathMatch[1];
         }
         
-        // Try to get from session storage
-        const sessionSite = sessionStorage.getItem('currentSiteId');
-        if (sessionSite) {
-            return sessionSite;
+        // Try to get from admin/vendor dashboard path patterns
+        const adminMatch = window.location.pathname.match(/\/admin(?:\/(\d+))?/);
+        if (adminMatch && adminMatch[1]) {
+            return adminMatch[1];
+        }
+        
+        const vendorMatch = window.location.pathname.match(/\/vendor(?:\/(\d+))?/);
+        if (vendorMatch && vendorMatch[1]) {
+            return vendorMatch[1];
+        }
+        
+        // Try to get from session storage (check if available)
+        if (typeof sessionStorage !== 'undefined') {
+            const sessionSite = sessionStorage.getItem('currentSiteId');
+            if (sessionSite && sessionSite !== 'null') {
+                return sessionSite;
+            }
         }
         
         // Try to get from data attributes
         const siteData = document.querySelector('[data-site-id]');
         if (siteData) {
             return siteData.getAttribute('data-site-id');
+        }
+        
+        // Try to get from current page context
+        const pageContext = document.querySelector('.current-site-id');
+        if (pageContext) {
+            return pageContext.textContent || pageContext.value;
         }
         
         return null;
@@ -441,7 +465,10 @@ class AutoSyncManager {
 document.addEventListener('DOMContentLoaded', function() {
     // Only initialize if user is authenticated
     if (document.body.querySelector('.sidebar')) {
-        window.autoSyncManager = new AutoSyncManager();
+        // Small delay to ensure page is fully loaded
+        setTimeout(() => {
+            window.autoSyncManager = new AutoSyncManager();
+        }, 1000);
     }
 });
 
