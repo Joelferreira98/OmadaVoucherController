@@ -2063,18 +2063,28 @@ def service_worker():
 def offline():
     return render_template('offline.html')
 
-# Auto-sync API Routes
+# Auto-sync API Routes  
 @app.route('/api/sync-sites', methods=['POST'])
 @login_required
 def api_sync_sites():
     """API endpoint for syncing sites with Omada Controller"""
-    if current_user.user_type != 'master':
-        return jsonify({'error': 'Unauthorized'}), 403
-    
     try:
+        # Check user authorization
+        if current_user.user_type != 'master':
+            return jsonify({'error': 'Unauthorized - Only master users can sync sites'}), 403
+        
+        # Check if Omada API is configured
+        omada_config = OmadaConfig.query.first()
+        if not omada_config or not omada_config.controller_url:
+            return jsonify({
+                'success': False,
+                'error': 'Omada Controller not configured'
+            }), 400
+        
         # Sync sites from Omada Controller
         count = sync_sites_from_omada()
         
+        logging.info(f"Sites synced successfully: {count}")
         return jsonify({
             'success': True,
             'count': count,
@@ -2092,26 +2102,44 @@ def api_sync_sites():
 def api_sync_vouchers(site_id):
     """API endpoint for syncing vouchers with Omada Controller"""
     try:
+        # Check if site exists
+        site = Site.query.get(site_id)
+        if not site:
+            return jsonify({'error': 'Site not found'}), 404
+        
         # Check if user has access to this site
-        if current_user.user_type == 'admin':
+        has_access = False
+        if current_user.user_type == 'master':
+            has_access = True
+        elif current_user.user_type == 'admin':
             admin_site = AdminSite.query.filter_by(admin_id=current_user.id, site_id=site_id).first()
-            if not admin_site:
-                return jsonify({'error': 'Site access denied'}), 403
+            has_access = admin_site is not None
         elif current_user.user_type == 'vendor':
             vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id, site_id=site_id).first()
-            if not vendor_site:
-                return jsonify({'error': 'Site access denied'}), 403
+            has_access = vendor_site is not None
+        
+        if not has_access:
+            return jsonify({'error': 'Site access denied'}), 403
+        
+        # Check if Omada API is configured
+        omada_config = OmadaConfig.query.first()
+        if not omada_config or not omada_config.controller_url:
+            return jsonify({
+                'success': False,
+                'error': 'Omada Controller not configured'
+            }), 400
         
         # Sync voucher statuses from Omada Controller
         count = sync_voucher_statuses_from_omada(site_id)
         
+        logging.info(f"Vouchers synced for site {site_id}: {count}")
         return jsonify({
             'success': True,
             'count': count,
             'message': f'{count} vouchers sincronizados'
         })
     except Exception as e:
-        logging.error(f"Error syncing vouchers: {str(e)}")
+        logging.error(f"Error syncing vouchers for site {site_id}: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

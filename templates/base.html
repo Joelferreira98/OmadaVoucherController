@@ -11,6 +11,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Vouchers">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <title>{% block title %}Sistema de Vouchers{% endblock %}</title>
     
@@ -45,7 +46,7 @@
                 {% endif %}
                 
                 <!-- Main content -->
-                <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4" data-user-type="{{ current_user.user_type if current_user.is_authenticated else 'guest' }}">
                     <!-- Mobile menu toggle (only visible on mobile) -->
                     <div class="d-md-none position-relative mb-3">
                         <button class="mobile-menu-toggle" id="mobileMenuToggle" style="display: block;">

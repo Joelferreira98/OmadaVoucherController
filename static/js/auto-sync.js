@@ -182,25 +182,48 @@ class AutoSyncManager {
         this.updateSyncStatus();
         
         try {
-            // Sync sites first
-            await this.syncSites(false);
+            let syncCount = 0;
             
-            // Then sync vouchers for current site
-            await this.syncVouchers(false);
+            // Only sync sites if user is master
+            if (this.getUserType() === 'master') {
+                try {
+                    const sitesResult = await this.syncSites(false);
+                    syncCount += sitesResult.count || 0;
+                } catch (error) {
+                    console.log('Sites sync skipped or failed:', error.message);
+                }
+            }
+            
+            // Try to sync vouchers for current site
+            try {
+                const vouchersResult = await this.syncVouchers(false);
+                syncCount += vouchersResult.count || 0;
+            } catch (error) {
+                console.log('Vouchers sync skipped or failed:', error.message);
+            }
             
             this.syncErrors = 0;
             this.lastSyncTime = Date.now();
             
             if (manual) {
-                this.showNotification('Sincronização concluída com sucesso', 'success');
+                if (syncCount > 0) {
+                    this.showNotification(`Sincronização concluída: ${syncCount} itens`, 'success');
+                } else {
+                    this.showNotification('Sincronização concluída: Nenhum item para sincronizar', 'info');
+                }
             }
             
         } catch (error) {
             console.error('Erro na sincronização:', error);
             this.syncErrors++;
             
-            if (manual || this.syncErrors >= this.maxErrors) {
+            if (manual) {
                 this.showNotification('Erro na sincronização com Omada Controller', 'danger');
+            }
+            
+            // Only show notification after several consecutive errors
+            if (this.syncErrors >= 3 && manual) {
+                this.showNotification('Múltiplos erros na sincronização', 'warning');
             }
             
             // Disable auto-sync after too many errors
@@ -208,6 +231,7 @@ class AutoSyncManager {
                 this.isEnabled = false;
                 localStorage.setItem('autoSync', 'false');
                 this.stopAutoSync();
+                this.showNotification('Auto-sync desativado devido a muitos erros', 'warning');
             }
         } finally {
             this.isSyncing = false;
@@ -215,17 +239,40 @@ class AutoSyncManager {
         }
     }
     
+    getUserType() {
+        // Try to get user type from page data
+        const userTypeElement = document.querySelector('[data-user-type]');
+        if (userTypeElement) {
+            return userTypeElement.getAttribute('data-user-type');
+        }
+        
+        // Try to get from sidebar class or other indicators
+        if (document.querySelector('.sidebar [href*="master"]')) {
+            return 'master';
+        } else if (document.querySelector('.sidebar [href*="admin"]')) {
+            return 'admin';
+        } else if (document.querySelector('.sidebar [href*="vendor"]')) {
+            return 'vendor';
+        }
+        
+        return 'unknown';
+    }
+    
     async syncSites(showNotification = true) {
         try {
+            const csrfToken = this.getCSRFToken();
             const response = await fetch('/api/sync-sites', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
                 },
+                credentials: 'same-origin',
             });
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
             
             const result = await response.json();
@@ -248,17 +295,24 @@ class AutoSyncManager {
         try {
             // Get current site ID from page or session
             const currentSite = this.getCurrentSiteId();
-            if (!currentSite) return;
+            if (!currentSite) {
+                console.log('No site ID found, skipping voucher sync');
+                return { count: 0 };
+            }
             
+            const csrfToken = this.getCSRFToken();
             const response = await fetch(`/api/sync-vouchers/${currentSite}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
                 },
+                credentials: 'same-origin',
             });
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
             
             const result = await response.json();
@@ -282,10 +336,35 @@ class AutoSyncManager {
         }
     }
     
+    getCSRFToken() {
+        // Try to get CSRF token from meta tag
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+            return csrfMeta.getAttribute('content');
+        }
+        
+        // Try to get from form hidden input
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) {
+            return csrfInput.value;
+        }
+        
+        // Try to get from cookie
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrf_token') {
+                return value;
+            }
+        }
+        
+        return '';
+    }
+    
     getCurrentSiteId() {
         // Try to get site ID from page data or URL
         const siteSelect = document.getElementById('site_id');
-        if (siteSelect) {
+        if (siteSelect && siteSelect.value) {
             return siteSelect.value;
         }
         
@@ -296,7 +375,18 @@ class AutoSyncManager {
         }
         
         // Try to get from session storage
-        return sessionStorage.getItem('currentSiteId');
+        const sessionSite = sessionStorage.getItem('currentSiteId');
+        if (sessionSite) {
+            return sessionSite;
+        }
+        
+        // Try to get from data attributes
+        const siteData = document.querySelector('[data-site-id]');
+        if (siteData) {
+            return siteData.getAttribute('data-site-id');
+        }
+        
+        return null;
     }
     
     refreshVoucherData() {
