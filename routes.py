@@ -1712,7 +1712,8 @@ def sync_voucher_status(site_id):
 @app.route('/vendor/voucher_history')
 @login_required
 def voucher_history():
-    if current_user.user_type != 'vendor':
+    # Vendor, Admin or Master can access voucher history - hierarchical permission
+    if not has_permission('vendor'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
@@ -1785,16 +1786,23 @@ def voucher_history():
 @app.route('/vendor/download_vouchers/<int:voucher_group_id>')
 @login_required
 def download_vouchers(voucher_group_id):
-    if current_user.user_type != 'vendor':
+    # Vendor, Admin or Master can download vouchers - hierarchical permission
+    if not has_permission('vendor'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
     voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
     
-    # Check if this voucher group belongs to the current vendor
-    if voucher_group.created_by_id != current_user.id:
-        flash('Acesso negado a este grupo de vouchers.', 'error')
-        return redirect(url_for('voucher_history'))
+    # Check access: vendors can only access their own vouchers, admins/masters can access any vouchers in their sites
+    if current_user.user_type == 'vendor':
+        if voucher_group.created_by_id != current_user.id:
+            flash('Acesso negado a este grupo de vouchers.', 'error')
+            return redirect(url_for('voucher_history'))
+    elif current_user.user_type in ['admin', 'master']:
+        # Admins and masters can access vouchers from their assigned sites
+        if not check_site_access(voucher_group.site_id):
+            flash('Acesso negado a este site.', 'error')
+            return redirect(url_for('dashboard'))
     
     # Get format from request parameter
     format_type = request.args.get('format', 'a4')  # Default to A4
@@ -1823,16 +1831,23 @@ def download_vouchers(voucher_group_id):
 @app.route('/vendor/print_vouchers/<int:voucher_group_id>')
 @login_required
 def print_vouchers(voucher_group_id):
-    if current_user.user_type != 'vendor':
+    # Vendor, Admin or Master can print vouchers - hierarchical permission
+    if not has_permission('vendor'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
     voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
     
-    # Check if this voucher group belongs to the current vendor
-    if voucher_group.created_by_id != current_user.id:
-        flash('Acesso negado a este grupo de vouchers.', 'error')
-        return redirect(url_for('voucher_history'))
+    # Check access: vendors can only access their own vouchers, admins/masters can access any vouchers in their sites
+    if current_user.user_type == 'vendor':
+        if voucher_group.created_by_id != current_user.id:
+            flash('Acesso negado a este grupo de vouchers.', 'error')
+            return redirect(url_for('voucher_history'))
+    elif current_user.user_type in ['admin', 'master']:
+        # Admins and masters can access vouchers from their assigned sites
+        if not check_site_access(voucher_group.site_id):
+            flash('Acesso negado a este site.', 'error')
+            return redirect(url_for('dashboard'))
     
     logging.info(f"Print page opened for voucher group {voucher_group_id} by {current_user.username}")
     
@@ -1842,7 +1857,8 @@ def print_vouchers(voucher_group_id):
 @app.route('/vendor/sales_reports')
 @login_required  
 def vendor_sales_reports():
-    if current_user.user_type != 'vendor':
+    # Vendor, Admin or Master can access sales reports - hierarchical permission
+    if not has_permission('vendor'):
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
