@@ -444,7 +444,8 @@ def sync_sites_from_omada():
             page += 1
         
         if not all_sites:
-            return False, "Nenhum site encontrado no Omada Controller. Verifique a configuração da API."
+            logging.warning("Nenhum site encontrado no Omada Controller")
+            return 0
         
         synced_count = 0
         updated_count = 0
@@ -478,14 +479,13 @@ def sync_sites_from_omada():
         
         db.session.commit()
         
-        total_sites = Site.query.count()
-        message = f"Sincronização concluída! {synced_count} novos sites, {updated_count} atualizados. Total: {total_sites} sites."
-        logging.info(message)
-        return True, message
+        total_count = synced_count + updated_count
+        logging.info(f"Sites synced: {synced_count} new, {updated_count} updated, {total_count} total")
+        return total_count
         
     except Exception as e:
         logging.error(f"Error syncing sites: {str(e)}")
-        return False, f"Erro na sincronização: {str(e)}"
+        raise e
 
 def sync_voucher_statuses_from_omada(site_id: int):
     """Sync voucher statuses from Omada Controller for a specific site"""

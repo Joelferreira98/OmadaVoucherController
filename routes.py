@@ -6,7 +6,6 @@ import logging
 
 from app import app, db, login_manager
 from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup, OmadaConfig, CashRegister
-from datetime import datetime
 from forms import LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, OmadaConfigForm, CashRegisterForm
 from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada, has_permission, check_site_access, get_accessible_sites, can_manage_user
 from omada_api import omada_api
@@ -42,7 +41,7 @@ def login():
                 if len(admin_sites) > 1:
                     return redirect(url_for('admin_site_selection'))
                 elif len(admin_sites) == 1:
-                    session['current_site_id'] = admin_sites[0].site_id
+                    session['selected_site_id'] = admin_sites[0].site_id
                     return redirect(next_page or url_for('admin_dashboard'))
                 else:
                     flash('Nenhum site atribuído. Contate o administrador.', 'warning')
@@ -239,13 +238,10 @@ def sync_sites():
     
     try:
         logging.info(f"Site synchronization started by {current_user.username}")
-        success, message = sync_sites_from_omada()
-        if success:
-            flash(message, 'success')
-            logging.info(f"Site synchronization completed successfully by {current_user.username}")
-        else:
-            flash(message, 'error')
-            logging.error(f"Site synchronization failed: {message}")
+        count = sync_sites_from_omada()
+        message = f"Sincronização concluída! {count} sites processados."
+        flash(message, 'success')
+        logging.info(f"Site synchronization completed: {count} sites by {current_user.username}")
     except Exception as e:
         error_msg = f"Erro durante a sincronização: {str(e)}"
         flash(error_msg, 'error')

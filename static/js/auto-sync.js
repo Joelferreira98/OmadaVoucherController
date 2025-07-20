@@ -367,49 +367,58 @@ class AutoSyncManager {
     }
     
     getCurrentSiteId() {
-        // Try to get site ID from page data or URL
+        // Try multiple methods to get current site ID
+        
+        // Method 1: From page data attribute
+        const pageData = document.querySelector('[data-site-id]');
+        if (pageData) {
+            const siteId = pageData.getAttribute('data-site-id');
+            if (siteId && siteId !== 'None' && siteId !== '') {
+                return siteId;
+            }
+        }
+        
+        // Method 2: From site select dropdown
         const siteSelect = document.getElementById('site_id');
         if (siteSelect && siteSelect.value && siteSelect.value !== '') {
             return siteSelect.value;
         }
         
-        // Try to get from URL path
-        const pathMatch = window.location.pathname.match(/\/site\/(\d+)/);
-        if (pathMatch) {
-            return pathMatch[1];
+        // Method 3: From URL path for admin/vendor routes
+        const path = window.location.pathname;
+        const siteMatch = path.match(/\/site\/(\d+)/);
+        if (siteMatch) {
+            return siteMatch[1];
         }
         
-        // Try to get from admin/vendor dashboard path patterns
-        const adminMatch = window.location.pathname.match(/\/admin(?:\/(\d+))?/);
-        if (adminMatch && adminMatch[1]) {
-            return adminMatch[1];
+        // Method 4: From current page context (admin/vendor have specific site context)
+        const userType = this.getUserType();
+        if (userType === 'vendor') {
+            // For vendors, try to get from page context or localStorage
+            const storedSite = localStorage.getItem('vendor_site_id');
+            if (storedSite) return storedSite;
+        } else if (userType === 'admin') {
+            // For admins, try to get from page context or localStorage
+            const storedSite = localStorage.getItem('admin_selected_site');
+            if (storedSite) return storedSite;
         }
         
-        const vendorMatch = window.location.pathname.match(/\/vendor(?:\/(\d+))?/);
-        if (vendorMatch && vendorMatch[1]) {
-            return vendorMatch[1];
-        }
-        
-        // Try to get from session storage (check if available)
+        // Method 5: Try session storage for persistence
         if (typeof sessionStorage !== 'undefined') {
             const sessionSite = sessionStorage.getItem('currentSiteId');
-            if (sessionSite && sessionSite !== 'null') {
+            if (sessionSite && sessionSite !== 'null' && sessionSite !== '') {
                 return sessionSite;
             }
         }
         
-        // Try to get from data attributes
-        const siteData = document.querySelector('[data-site-id]');
-        if (siteData) {
-            return siteData.getAttribute('data-site-id');
+        // Method 6: Try to get from URL patterns (legacy support)
+        const pathMatch = path.match(/\/site\/(\d+)/);
+        if (pathMatch) {
+            return pathMatch[1];
         }
         
-        // Try to get from current page context
-        const pageContext = document.querySelector('.current-site-id');
-        if (pageContext) {
-            return pageContext.textContent || pageContext.value;
-        }
-        
+        // Store site ID for later use when it becomes available
+        console.log('No site ID found for sync - will retry on next cycle');
         return null;
     }
     

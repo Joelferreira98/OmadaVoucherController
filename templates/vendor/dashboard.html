@@ -3,7 +3,7 @@
 {% block title %}Dashboard Vendedor - {{ site.name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
+<div class="container-fluid px-4" data-site-id="{{ site.id if site else '' }}" data-site-name="{{ site.name if site else '' }}">
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-12">
