@@ -81,8 +81,8 @@
                                 </thead>
                                 <tbody>
                                     {% for vg in voucher_groups %}
-                                        {% set sold_count = (vg.used_count or 0) + (vg.expired_count or 0) %}
-                                        {% set revenue = sold_count * vg.plan.price %}
+                                        {% set sold_count = (vg.used_count or 0) + (vg.expired_count or 0) + (vg.in_use_count or 0) %}
+                                        {% set revenue = sold_count * vg.plan.price %>
                                         <tr>
                                             <td>{{ vg.created_at.strftime('%d/%m %H:%M') }}</td>
                                             <td>
