@@ -14,7 +14,14 @@ class AutoSyncManager {
     
     init() {
         // Load sync preference from localStorage
-        this.isEnabled = localStorage.getItem('autoSync') !== 'false';
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                this.isEnabled = window.localStorage.getItem('autoSync') !== 'false';
+            }
+        } catch (e) {
+            console.log('LocalStorage not available for sync preference:', e.message);
+            this.isEnabled = true; // Default to enabled
+        }
         
         // Create sync status indicator
         this.createSyncIndicator();
@@ -158,7 +165,14 @@ class AutoSyncManager {
     
     toggleAutoSync() {
         this.isEnabled = !this.isEnabled;
-        localStorage.setItem('autoSync', this.isEnabled.toString());
+        
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('autoSync', this.isEnabled.toString());
+            }
+        } catch (e) {
+            console.log('Cannot save sync preference:', e.message);
+        }
         
         if (this.isEnabled) {
             this.startAutoSync();
@@ -234,7 +248,13 @@ class AutoSyncManager {
             // Disable auto-sync after too many errors
             if (this.syncErrors >= this.maxErrors) {
                 this.isEnabled = false;
-                localStorage.setItem('autoSync', 'false');
+                try {
+                    if (typeof window !== 'undefined' && window.localStorage) {
+                        window.localStorage.setItem('autoSync', 'false');
+                    }
+                } catch (e) {
+                    console.log('Cannot save error sync preference:', e.message);
+                }
                 this.stopAutoSync();
                 this.showNotification('Auto-sync desativado devido a muitos erros', 'warning');
             }
@@ -396,20 +416,36 @@ class AutoSyncManager {
         const userType = this.getUserType();
         if (userType === 'vendor') {
             // For vendors, try to get from page context or localStorage
-            const storedSite = localStorage.getItem('vendor_site_id');
-            if (storedSite) return storedSite;
+            try {
+                if (typeof window !== 'undefined' && window.localStorage) {
+                    const storedSite = window.localStorage.getItem('vendor_site_id');
+                    if (storedSite) return storedSite;
+                }
+            } catch (e) {
+                console.log('LocalStorage not available for vendor:', e.message);
+            }
         } else if (userType === 'admin') {
             // For admins, try to get from page context or localStorage
-            const storedSite = localStorage.getItem('admin_selected_site');
-            if (storedSite) return storedSite;
+            try {
+                if (typeof window !== 'undefined' && window.localStorage) {
+                    const storedSite = window.localStorage.getItem('admin_selected_site');
+                    if (storedSite) return storedSite;
+                }
+            } catch (e) {
+                console.log('LocalStorage not available for admin:', e.message);
+            }
         }
         
         // Method 5: Try session storage for persistence
-        if (typeof sessionStorage !== 'undefined') {
-            const sessionSite = sessionStorage.getItem('currentSiteId');
-            if (sessionSite && sessionSite !== 'null' && sessionSite !== '') {
-                return sessionSite;
+        try {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+                const sessionSite = window.sessionStorage.getItem('currentSiteId');
+                if (sessionSite && sessionSite !== 'null' && sessionSite !== '') {
+                    return sessionSite;
+                }
             }
+        } catch (e) {
+            console.log('SessionStorage not available:', e.message);
         }
         
         // Method 6: Try to get from URL patterns (legacy support)
