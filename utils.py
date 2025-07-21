@@ -356,7 +356,7 @@ def format_duration(duration: int, unit: str) -> str:
         return f"{duration}d"
     return f"{duration} {unit}"
 
-def generate_sales_report_data(site_id: int, start_date: datetime = None, end_date: datetime = None) -> Dict:
+def generate_sales_report_data(site_id: int, start_date=None, end_date=None) -> Dict:
     """Generate sales report data for a specific site based on actual voucher usage"""
     from models import VoucherGroup, VoucherPlan
     

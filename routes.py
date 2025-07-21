@@ -30,7 +30,7 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
-        if user and check_password_hash(user.password_hash, form.password.data) and user.is_active:
+        if user and user.password_hash and check_password_hash(user.password_hash, form.password.data) and user.is_active:
             login_user(user)
             next_page = request.args.get('next')
             
@@ -86,7 +86,7 @@ def profile():
     form = ChangePasswordForm()
     
     if form.validate_on_submit():
-        if not check_password_hash(current_user.password_hash, form.current_password.data):
+        if not current_user.password_hash or not check_password_hash(current_user.password_hash, form.current_password.data):
             flash('Senha atual incorreta.', 'error')
             return render_template('profile.html', form=form, user=current_user)
         
@@ -95,7 +95,7 @@ def profile():
             return render_template('profile.html', form=form, user=current_user)
         
         try:
-            current_user.password_hash = generate_password_hash(form.new_password.data)
+            current_user.password_hash = generate_password_hash(form.new_password.data) if form.new_password.data else None
             db.session.commit()
             flash('Senha alterada com sucesso.', 'success')
             logging.info(f"Password changed for user {current_user.username}")
@@ -421,7 +421,7 @@ def change_admin_password(user_id):
             return render_template('master/change_admin_password.html', form=form, user=user)
         
         try:
-            user.password_hash = generate_password_hash(form.new_password.data)
+            user.password_hash = generate_password_hash(form.new_password.data) if form.new_password.data else None
             db.session.commit()
             flash(f'Senha do administrador {user.username} alterada com sucesso.', 'success')
             logging.info(f"Password changed for admin {user.username} by {current_user.username}")
@@ -792,7 +792,7 @@ def change_vendor_password(user_id):
             return render_template('admin/change_vendor_password.html', form=form, user=user)
         
         try:
-            user.password_hash = generate_password_hash(form.new_password.data)
+            user.password_hash = generate_password_hash(form.new_password.data) if form.new_password.data else None
             db.session.commit()
             flash(f'Senha do vendedor {user.username} alterada com sucesso.', 'success')
             logging.info(f"Password changed for vendor {user.username} by admin {current_user.username}")
@@ -2299,7 +2299,7 @@ def delete_voucher_group(group_id):
     voucher_group = VoucherGroup.query.get_or_404(group_id)
     
     # Check access
-    if not check_site_access(current_user, voucher_group.site_id):
+    if not check_site_access(voucher_group.site_id):
         return jsonify({'success': False, 'error': 'Acesso negado'}), 403
     
     try:

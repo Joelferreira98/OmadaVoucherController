@@ -122,6 +122,23 @@ Preferred communication style: Simple, everyday language.
 - **Solution**: Switched from dark Bootstrap theme to standard Bootstrap for better form visibility
 - **Login Page Cleanup**: Removed default test credentials display for production use
 
+### Format Selection and Clean Print System Implementation (July 21, 2025)
+- **Feature**: Complete print format selection system with clean print pages
+- **Implementation**:
+  - Added choose_print_format.html with visual format selection (A4 vs 50x80mm)
+  - Created print_vouchers_clean.html with print-only layout
+  - A4 format: 32 vouchers per page in 4x8 grid with cut lines
+  - 50x80mm format: 1 voucher per page for thermal printers
+  - Clean voucher-only display without navigation elements
+  - Format switching capability during print workflow
+- **User Experience**: 
+  - Generate vouchers → choose format → print clean page
+  - Visual format selection with clear descriptions
+  - Print controls hidden during actual printing
+  - Back navigation to change formats
+- **Integration**: Works seamlessly with admin and vendor interfaces
+- **Permissions**: Hierarchical access control maintained across all print functions
+
 ### Complete Theme System Implementation (July 10, 2025)
 - **Feature**: Dual theme system with light and dark modes
 - **Implementation**:
