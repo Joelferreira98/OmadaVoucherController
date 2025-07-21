@@ -161,11 +161,11 @@
                                             <span class="badge bg-primary">{{ vg.quantity }}</span> gerados
                                         </div>
                                         <div class="mt-1">
-                                            <span class="badge bg-success">{{ (vg.expired_count or 0) + (vg.used_count or 0) }}</span> vendidos
+                                            <span class="badge bg-success">{{ (vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0) }}</span> vendidos
                                         </div>
                                     </td>
                                     <td>
-                                        {% set sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0) %}
+                                        {% set sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0) %}
                                         <strong>R$ {{ (sold_vouchers * vg.plan.price)|currency }}</strong>
                                         <div class="small text-muted">
                                             {{ sold_vouchers }} × R$ {{ vg.plan.price|currency }}

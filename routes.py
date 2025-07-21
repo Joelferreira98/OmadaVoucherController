@@ -1764,10 +1764,10 @@ def voucher_history():
     # Get voucher groups
     voucher_groups = query.order_by(VoucherGroup.created_at.desc()).all()
     
-    # Calculate statistics based on actual sales (expired + used vouchers)
+    # Calculate statistics based on actual sales (expired + used + in_use vouchers)
     total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
-    total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) for vg in voucher_groups)
-    total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0)) * vg.plan.price for vg in voucher_groups)
+    total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0) for vg in voucher_groups)
+    total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0)) * vg.plan.price for vg in voucher_groups)
     total_groups = len(voucher_groups)
     
     # Calculate average per day for sold vouchers
