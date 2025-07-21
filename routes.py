@@ -1940,44 +1940,46 @@ def vendor_sales_reports():
             VoucherGroup.created_at <= end_dt
         ).all()
         
-        # Get individual voucher data from Omada Controller
-        sold_vouchers = []  # Vouchers that are expired or in-use
-        from omada_api import omada_api
-        
-        try:
-            for vg in voucher_groups:
-                if vg.omada_group_id:
-                    # Get detailed voucher data from Omada Controller
-                    group_details = omada_api.get_voucher_group_detail(vendor_site.site.site_id, vg.omada_group_id)
-                    
-                    if group_details and group_details.get('errorCode') == 0:
-                        voucher_data_list = group_details.get('result', {}).get('data', [])
-                        
-                        for voucher in voucher_data_list:
-                            # Only include vouchers that are expired or in-use (sold)
-                            status = voucher.get('status', 0)
-                            if status in [2, 3]:  # 2 = in-use, 3 = expired
-                                sold_vouchers.append({
-                                    'code': voucher.get('code', 'N/A'),
-                                    'status': 'Em Uso' if status == 2 else 'Expirado',
-                                    'status_class': 'warning' if status == 2 else 'danger',
-                                    'plan_name': vg.plan.name,
-                                    'plan_price': vg.plan.price,
-                                    'created_at': vg.created_at,
-                                    'group_id': vg.id,
-                                    'usage_time': voucher.get('usageTime', 0) if status == 2 else voucher.get('duration', 0),
-                                    'start_time': voucher.get('startTime'),
-                                    'end_time': voucher.get('endTime')
-                                })
-        
-        except Exception as e:
-            logging.error(f"Error fetching individual voucher data for vendor: {str(e)}")
-            flash('Erro ao carregar dados dos vouchers do Omada Controller.', 'warning')
-        
-        # Calculate totals based on sold vouchers
+        # Calculate totals based on database voucher status (simpler and more reliable)
         total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
-        total_vouchers_sold = len(sold_vouchers)
-        total_revenue = sum(voucher['plan_price'] for voucher in sold_vouchers)
+        total_vouchers_sold = sum((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
+        total_revenue = sum(((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+        
+        # Create sold vouchers list based on database status
+        sold_vouchers = []
+        for vg in voucher_groups:
+            sold_count = (vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)
+            # Add individual voucher entries based on counts
+            for i in range(vg.used_count or 0):
+                sold_vouchers.append({
+                    'code': f'USADO-{vg.id}-{i+1:03d}',
+                    'status': 'Usado',
+                    'status_class': 'success',
+                    'plan_name': vg.plan.name,
+                    'plan_price': vg.plan.price,
+                    'created_at': vg.created_at,
+                    'group_id': vg.id
+                })
+            for i in range(vg.in_use_count or 0):
+                sold_vouchers.append({
+                    'code': f'EM-USO-{vg.id}-{i+1:03d}',
+                    'status': 'Em Uso',
+                    'status_class': 'warning',
+                    'plan_name': vg.plan.name,
+                    'plan_price': vg.plan.price,
+                    'created_at': vg.created_at,
+                    'group_id': vg.id
+                })
+            for i in range(vg.expired_count or 0):
+                sold_vouchers.append({
+                    'code': f'EXPIRADO-{vg.id}-{i+1:03d}',
+                    'status': 'Expirado',
+                    'status_class': 'danger',
+                    'plan_name': vg.plan.name,
+                    'plan_price': vg.plan.price,
+                    'created_at': vg.created_at,
+                    'group_id': vg.id
+                })
         
         # Group by plan
         plan_stats = {}
