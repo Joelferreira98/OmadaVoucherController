@@ -1,0 +1,228 @@
+/* PWA specific styles */
+
+/* Install button */
+#pwa-install-btn {
+  bottom: 20px;
+  right: 20px;
+  z-index: 1050;
+  border-radius: 50px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+  border: none;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  transition: all 0.3s ease;
+  animation: installPulse 3s ease-in-out infinite;
+}
+
+@keyframes installPulse {
+  0%, 100% { 
+    transform: scale(1); 
+    box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+  }
+  50% { 
+    transform: scale(1.05); 
+    box-shadow: 0 6px 16px rgba(0,123,255,0.5);
+  }
+}
+
+#pwa-install-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(0,123,255,0.4) !important;
+  animation: none;
+}
+
+/* Offline indicator */
+#offline-indicator {
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1060;
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 25px;
+  border: none;
+  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+  color: #000;
+  box-shadow: 0 2px 8px rgba(255,193,7,0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* PWA mode detection */
+@media all and (display-mode: standalone) {
+  body {
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Hide install button in standalone mode */
+  #pwa-install-btn {
+    display: none !important;
+  }
+  
+  /* Adjust layout for standalone */
+  .container-fluid {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* iOS specific PWA styles */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari PWA styles */
+  @media all and (display-mode: standalone) {
+    body {
+      padding-top: constant(safe-area-inset-top);
+      padding-top: env(safe-area-inset-top);
+    }
+    
+    /* Status bar overlay protection */
+    .navbar-brand,
+    .mobile-menu-toggle {
+      padding-top: calc(constant(safe-area-inset-top) + 10px);
+      padding-top: calc(env(safe-area-inset-top) + 10px);
+    }
+  }
+}
+
+/* Loading states */
+.pwa-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.pwa-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Update notification */
+.pwa-update-notification {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 16px;
+  max-width: 300px;
+  z-index: 1055;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Network status indicators */
+.network-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.network-status.online {
+  background: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+}
+
+.network-status.offline {
+  background: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+}
+
+.network-status i {
+  margin-right: 4px;
+}
+
+/* Touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device optimizations */
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .mobile-menu-toggle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Larger tap targets */
+  .nav-link {
+    padding: 12px 16px;
+  }
+  
+  /* Better spacing for touch */
+  .card {
+    margin-bottom: 16px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  #pwa-install-btn {
+    animation: none;
+  }
+  
+  #offline-indicator {
+    animation: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  #pwa-install-btn {
+    border: 2px solid #000;
+    background: #000;
+    color: #fff;
+  }
+  
+  #offline-indicator {
+    border: 2px solid #000;
+    background: #ffff00;
+    color: #000;
+  }
+}

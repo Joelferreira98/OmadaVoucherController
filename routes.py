@@ -2561,3 +2561,11 @@ def currency_filter(value):
 @app.template_filter('duration')
 def duration_filter(value, unit):
     return format_duration(value, unit)
+
+# PWA Routes  
+@app.route('/pwa-offline')
+def pwa_offline():
+    """Offline fallback page for PWA"""
+    return render_template('offline.html')
+
+# PWA manifest is served automatically by Flask static files
