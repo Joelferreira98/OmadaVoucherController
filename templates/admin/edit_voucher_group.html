@@ -34,6 +34,31 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-12 mb-3">
+                                {{ form.name.label(class="form-label fw-medium") }}
+                                {{ form.name(class="form-control") }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                {{ form.notes.label(class="form-label fw-medium") }}
+                                {{ form.notes(class="form-control", rows="3") }}
+                                <div class="form-text">Observações opcionais sobre este grupo de vouchers</div>
+                                {% if form.notes.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.notes.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6 mb-3">
                                 {{ form.quantity.label(class="form-label fw-medium") }}
                                 {{ form.quantity(class="form-control", readonly=True) }}

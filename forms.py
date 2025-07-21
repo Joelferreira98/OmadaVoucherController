@@ -70,6 +70,8 @@ class AdminChangePasswordForm(FlaskForm):
     confirm_password = PasswordField('Confirmar Nova Senha', validators=[DataRequired(), Length(min=4)])
 
 class VoucherGroupEditForm(FlaskForm):
+    name = StringField('Nome do Grupo', validators=[DataRequired(), Length(min=3, max=200)])
+    notes = TextAreaField('Observações', validators=[Optional(), Length(max=1000)])
     quantity = IntegerField('Quantidade', validators=[DataRequired(), NumberRange(min=1)], render_kw={'readonly': True})
     status = SelectField('Status', choices=[
         ('generated', 'Gerado'),

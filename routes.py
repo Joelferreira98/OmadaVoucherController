@@ -2266,7 +2266,7 @@ def edit_voucher_group(group_id):
     voucher_group = VoucherGroup.query.get_or_404(group_id)
     
     # Check access based on user type
-    if not check_site_access(current_user, voucher_group.site_id):
+    if not check_site_access(voucher_group.site_id):
         flash('Acesso negado a este grupo de vouchers.', 'error')
         return redirect(url_for('voucher_history'))
     
@@ -2306,7 +2306,7 @@ def delete_voucher_group(group_id):
         # Try to delete from Omada Controller first
         if voucher_group.omada_group_id:
             try:
-                success = omada_api.delete_voucher_groups([voucher_group.omada_group_id])
+                success = omada_api.delete_voucher_groups(voucher_group.site.site_id, [voucher_group.omada_group_id])
                 if not success:
                     logging.warning(f"Failed to delete voucher group from Omada: {voucher_group.omada_group_id}")
             except Exception as omada_error:
