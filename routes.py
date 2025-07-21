@@ -1792,7 +1792,7 @@ def download_vouchers(voucher_group_id):
             return redirect(url_for('voucher_history'))
     elif current_user.user_type in ['admin', 'master']:
         # Admins and masters can access vouchers from their assigned sites
-        if not check_site_access(current_user, voucher_group.site_id):
+        if not check_site_access(voucher_group.site_id):
             flash('Acesso negado a este site.', 'error')
             return redirect(url_for('dashboard'))
     
@@ -1838,7 +1838,7 @@ def choose_print_format(voucher_group_id):
             return redirect(url_for('voucher_history'))
     elif current_user.user_type in ['admin', 'master']:
         # Admins and masters can access vouchers from their assigned sites
-        if not check_site_access(current_user, voucher_group.site_id):
+        if not check_site_access(voucher_group.site_id):
             flash('Acesso negado a este site.', 'error')
             return redirect(url_for('dashboard'))
     
@@ -1861,7 +1861,7 @@ def print_vouchers(voucher_group_id):
             return redirect(url_for('voucher_history'))
     elif current_user.user_type in ['admin', 'master']:
         # Admins and masters can access vouchers from their assigned sites
-        if not check_site_access(current_user, voucher_group.site_id):
+        if not check_site_access(voucher_group.site_id):
             flash('Acesso negado a este site.', 'error')
             return redirect(url_for('dashboard'))
     
