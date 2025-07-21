@@ -269,6 +269,7 @@ Preferred communication style: Simple, everyday language.
   - check_site_access(): Validates user access to specific sites
   - get_accessible_sites(): Returns sites accessible to current user
   - can_manage_user(): Determines user management permissions
+  - get_vendor_site_for_user(): Helper function for hierarchical site access
 - **Route Protection**: Applied hierarchical permissions to all major routes
   - Master routes: Only masters can access (master dashboard, admin management)
   - Admin routes: Admins and masters can access (vendor management, plans, admin vouchers)
@@ -281,6 +282,28 @@ Preferred communication style: Simple, everyday language.
   - Permission checks replace hard-coded user type restrictions
   - Hierarchical model follows standard role-based access control patterns
   - Error handling redirects unauthorized users to appropriate dashboards
+
+### Site-Wide Reporting System Enhancement (July 21, 2025)
+- **Problem**: Reports were showing only vouchers created by current user instead of all site vouchers
+- **Solution Implemented**: Complete reporting system overhaul for comprehensive site data
+  - Vendor dashboard now shows all vouchers for the site (not just user-created)
+  - Sales reports include all vouchers from the site regardless of creator
+  - Voucher history displays complete site activity instead of user-specific data
+  - Download and print functions allow access to all site vouchers
+- **Data Access Changes**: 
+  - Dashboard statistics: Changed from created_by_id filter to site_id filter
+  - Sales reports: VoucherGroup queries now filter by site_id instead of created_by_id
+  - Voucher history: Base query changed to include all site vouchers
+  - Access controls: Vendors can now access any voucher from their assigned site
+- **Hierarchical Support**: Enhanced vendor functions to support admin/master access
+  - get_vendor_site_for_user() provides mock vendor site for admin/master users
+  - Seamless integration between admin dashboard and vendor functions
+  - Proper site selection validation for hierarchical users
+- **Benefits**: 
+  - Complete visibility of site voucher activity
+  - Accurate revenue calculations across all site operations
+  - Unified reporting regardless of voucher creator
+  - Better collaboration between different user types on same site
 
 ### VPS Deployment Preparation (July 10, 2025)
 - **Production Ready**: Application tested and optimized for deployment

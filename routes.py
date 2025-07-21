@@ -1484,25 +1484,25 @@ def vendor_dashboard():
     # Get available plans for this site
     plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
     
-    # Get vendor statistics - generated vs sold
+    # Get site statistics - all vouchers for the site (not just created by current user)
     total_vouchers_generated = db.session.query(db.func.sum(VoucherGroup.quantity)).filter(
-        VoucherGroup.created_by_id == current_user.id
+        VoucherGroup.site_id == vendor_site.site_id
     ).scalar() or 0
     
-    # Calculate vouchers actually sold (used + expired)
-    voucher_groups = VoucherGroup.query.filter_by(created_by_id=current_user.id).all()
+    # Calculate vouchers actually sold (used + expired) for all site vouchers
+    voucher_groups = VoucherGroup.query.filter_by(site_id=vendor_site.site_id).all()
     total_vouchers_sold = sum((vg.used_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
     total_revenue = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
     
-    # Monthly sales based on sold vouchers
+    # Monthly sales based on sold vouchers for the site
     start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     monthly_voucher_groups = VoucherGroup.query.filter(
-        VoucherGroup.created_by_id == current_user.id,
+        VoucherGroup.site_id == vendor_site.site_id,
         VoucherGroup.created_at >= start_of_month
     ).all()
     monthly_sales = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in monthly_voucher_groups)
     
-    recent_vouchers = VoucherGroup.query.filter_by(created_by_id=current_user.id).order_by(
+    recent_vouchers = VoucherGroup.query.filter_by(site_id=vendor_site.site_id).order_by(
         VoucherGroup.created_at.desc()
     ).limit(5).all()
     
@@ -1738,8 +1738,8 @@ def voucher_history():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     
-    # Base query
-    query = VoucherGroup.query.filter_by(created_by_id=current_user.id)
+    # Base query - get all vouchers for the site (not just created by current user)
+    query = VoucherGroup.query.filter_by(site_id=vendor_site.site_id)
     
     # Apply filters
     if plan_id:
@@ -1804,9 +1804,11 @@ def download_vouchers(voucher_group_id):
     
     voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
     
-    # Check access: vendors can only access their own vouchers, admins/masters can access any vouchers in their sites
+    # Check access: all users can access vouchers from their assigned sites
     if current_user.user_type == 'vendor':
-        if voucher_group.created_by_id != current_user.id:
+        # Vendors can access vouchers from their site (not just their own)
+        vendor_site = get_vendor_site_for_user()
+        if not vendor_site or voucher_group.site_id != vendor_site.site_id:
             flash('Acesso negado a este grupo de vouchers.', 'error')
             return redirect(url_for('voucher_history'))
     elif current_user.user_type in ['admin', 'master']:
@@ -1850,9 +1852,11 @@ def choose_print_format(voucher_group_id):
     
     voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
     
-    # Check access: vendors can only access their own vouchers, admins/masters can access any vouchers in their sites
+    # Check access: all users can access vouchers from their assigned sites
     if current_user.user_type == 'vendor':
-        if voucher_group.created_by_id != current_user.id:
+        # Vendors can access vouchers from their site (not just their own)
+        vendor_site = get_vendor_site_for_user()
+        if not vendor_site or voucher_group.site_id != vendor_site.site_id:
             flash('Acesso negado a este grupo de vouchers.', 'error')
             return redirect(url_for('voucher_history'))
     elif current_user.user_type in ['admin', 'master']:
@@ -1873,9 +1877,11 @@ def print_vouchers(voucher_group_id):
     
     voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
     
-    # Check access: vendors can only access their own vouchers, admins/masters can access any vouchers in their sites
+    # Check access: all users can access vouchers from their assigned sites
     if current_user.user_type == 'vendor':
-        if voucher_group.created_by_id != current_user.id:
+        # Vendors can access vouchers from their site (not just their own)
+        vendor_site = get_vendor_site_for_user()
+        if not vendor_site or voucher_group.site_id != vendor_site.site_id:
             flash('Acesso negado a este grupo de vouchers.', 'error')
             return redirect(url_for('voucher_history'))
     elif current_user.user_type in ['admin', 'master']:
@@ -1926,9 +1932,9 @@ def vendor_sales_reports():
         start_dt = datetime.strptime(start_date, '%Y-%m-%d')
         end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
         
-        # Get voucher groups in date range
+        # Get all voucher groups for the site in date range (not just created by current user)
         voucher_groups = VoucherGroup.query.filter(
-            VoucherGroup.created_by_id == current_user.id,
+            VoucherGroup.site_id == vendor_site.site_id,
             VoucherGroup.created_at >= start_dt,
             VoucherGroup.created_at <= end_dt
         ).all()
