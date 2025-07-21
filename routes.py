@@ -1232,7 +1232,8 @@ def admin_generate_vouchers():
                 flash(f'{form.quantity.data} vouchers criados com sucesso!', 'success')
                 logging.info(f"Admin {current_user.username} created {form.quantity.data} vouchers for plan {plan.name}")
                 
-                return redirect(url_for('admin_voucher_history'))
+                # Redirect to print page after successful generation
+                return redirect(url_for('print_vouchers', group_id=voucher_group.id))
             else:
                 error_msg = result.get('msg', 'Erro desconhecido') if result else 'Falha na comunicação'
                 flash(f'Erro ao criar vouchers: {error_msg}', 'error')
@@ -1668,15 +1669,8 @@ def generate_vouchers():
                 flash(f'{form.quantity.data} vouchers gerados com sucesso!', 'success')
                 logging.info(f"Vouchers generated: {form.quantity.data} vouchers by {current_user.username} for plan {plan.name}")
                 
-                # Get selected format and handle accordingly
-                download_format = request.form.get('download_format', 'a4')
-                
-                if download_format == 'print':
-                    # For print option, redirect to a print-friendly version
-                    return redirect(url_for('print_vouchers', voucher_group_id=voucher_group.id))
-                else:
-                    # For download options, redirect with format parameter
-                    return redirect(url_for('download_vouchers', voucher_group_id=voucher_group.id, format=download_format))
+                # Always redirect to print page after successful generation
+                return redirect(url_for('print_vouchers', voucher_group_id=voucher_group.id))
             else:
                 error_msg = result.get('msg', 'Erro na API do Omada Controller') if result else 'Falha na comunicação com o Controller'
                 flash(f'Erro ao gerar vouchers: {error_msg}', 'error')
