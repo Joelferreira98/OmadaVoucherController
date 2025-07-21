@@ -369,16 +369,16 @@ def generate_sales_report_data(site_id: int, start_date=None, end_date=None) -> 
     
     voucher_groups = query.all()
     
-    # Calculate totals based on actually sold vouchers (expired + used)
+    # Calculate totals based on actually sold vouchers (expired + used + in_use)
     total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
-    total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) for vg in voucher_groups)
-    total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0)) * vg.plan.price for vg in voucher_groups)
+    total_vouchers_sold = sum((vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0) for vg in voucher_groups)
+    total_revenue = sum(((vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0)) * vg.plan.price for vg in voucher_groups)
     
     # Group by plan - only count sold vouchers
     plan_sales = {}
     for vg in voucher_groups:
         plan_name = vg.plan.name
-        sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
+        sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0)
         
         if plan_name not in plan_sales:
             plan_sales[plan_name] = {
@@ -396,7 +396,7 @@ def generate_sales_report_data(site_id: int, start_date=None, end_date=None) -> 
     vendor_sales = {}
     for vg in voucher_groups:
         vendor_name = vg.created_by.username
-        sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0)
+        sold_vouchers = (vg.expired_count or 0) + (vg.used_count or 0) + (vg.in_use_count or 0)
         
         if vendor_name not in vendor_sales:
             vendor_sales[vendor_name] = {

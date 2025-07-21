@@ -1309,12 +1309,12 @@ def cash_register():
         VoucherGroup.created_at <= period_end
     ).all()
     
-    # Calculate statistics
+    # Calculate statistics - vouchers sold include: used, in_use, and expired
     total_generated = sum(vg.quantity for vg in voucher_groups)
-    total_sold = sum((vg.used_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
+    total_sold = sum((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
     total_expired = sum(vg.expired_count or 0 for vg in voucher_groups)
     total_unused = sum(vg.unused_count or 0 for vg in voucher_groups)
-    total_revenue = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+    total_revenue = sum(((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
     
     # Get groups with expired vouchers
     groups_with_expired = [vg for vg in voucher_groups if (vg.expired_count or 0) > 0]
@@ -1373,12 +1373,12 @@ def close_cash_register():
             VoucherGroup.created_at <= period_end
         ).all()
         
-        # Calculate statistics
+        # Calculate statistics - vouchers sold include: used, in_use, and expired  
         total_generated = sum(vg.quantity for vg in voucher_groups)
-        total_sold = sum((vg.used_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
+        total_sold = sum((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
         total_expired = sum(vg.expired_count or 0 for vg in voucher_groups)
         total_unused = sum(vg.unused_count or 0 for vg in voucher_groups)
-        total_revenue = sum(((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+        total_revenue = sum(((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
         
         # Remove expired vouchers if requested
         expired_removed = False
@@ -1413,8 +1413,9 @@ def close_cash_register():
                 'quantity': vg.quantity,
                 'unused_count': vg.unused_count or 0,
                 'used_count': vg.used_count or 0,
+                'in_use_count': vg.in_use_count or 0,
                 'expired_count': vg.expired_count or 0,
-                'total_value': ((vg.used_count or 0) + (vg.expired_count or 0)) * vg.plan.price,
+                'total_value': ((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price,
                 'created_at': vg.created_at.isoformat(),
                 'created_by': vg.created_by.username
             } for vg in voucher_groups],
