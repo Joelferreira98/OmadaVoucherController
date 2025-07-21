@@ -1232,8 +1232,8 @@ def admin_generate_vouchers():
                 flash(f'{form.quantity.data} vouchers criados com sucesso!', 'success')
                 logging.info(f"Admin {current_user.username} created {form.quantity.data} vouchers for plan {plan.name}")
                 
-                # Redirect to print page after successful generation
-                return redirect(url_for('print_vouchers', voucher_group_id=voucher_group.id))
+                # Redirect to format selection page after successful generation
+                return redirect(url_for('choose_print_format', voucher_group_id=voucher_group.id))
             else:
                 error_msg = result.get('msg', 'Erro desconhecido') if result else 'Falha na comunicação'
                 flash(f'Erro ao criar vouchers: {error_msg}', 'error')
@@ -1669,8 +1669,8 @@ def generate_vouchers():
                 flash(f'{form.quantity.data} vouchers gerados com sucesso!', 'success')
                 logging.info(f"Vouchers generated: {form.quantity.data} vouchers by {current_user.username} for plan {plan.name}")
                 
-                # Always redirect to print page after successful generation
-                return redirect(url_for('print_vouchers', voucher_group_id=voucher_group.id))
+                # Always redirect to format selection page after successful generation
+                return redirect(url_for('choose_print_format', voucher_group_id=voucher_group.id))
             else:
                 error_msg = result.get('msg', 'Erro na API do Omada Controller') if result else 'Falha na comunicação com o Controller'
                 flash(f'Erro ao gerar vouchers: {error_msg}', 'error')
@@ -1820,6 +1820,30 @@ def download_vouchers(voucher_group_id):
         flash('Erro ao gerar PDF dos vouchers.', 'error')
         return redirect(url_for('voucher_history'))
 
+@app.route('/vendor/choose_print_format/<int:voucher_group_id>')
+@login_required
+def choose_print_format(voucher_group_id):
+    """Choose print format page"""
+    # Vendor, Admin or Master can choose print format - hierarchical permission
+    if not has_permission('vendor'):
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    voucher_group = VoucherGroup.query.get_or_404(voucher_group_id)
+    
+    # Check access: vendors can only access their own vouchers, admins/masters can access any vouchers in their sites
+    if current_user.user_type == 'vendor':
+        if voucher_group.created_by_id != current_user.id:
+            flash('Acesso negado a este grupo de vouchers.', 'error')
+            return redirect(url_for('voucher_history'))
+    elif current_user.user_type in ['admin', 'master']:
+        # Admins and masters can access vouchers from their assigned sites
+        if not check_site_access(current_user, voucher_group.site_id):
+            flash('Acesso negado a este site.', 'error')
+            return redirect(url_for('dashboard'))
+    
+    return render_template('vendor/choose_print_format.html', voucher_group=voucher_group)
+
 @app.route('/vendor/print_vouchers/<int:voucher_group_id>')
 @login_required
 def print_vouchers(voucher_group_id):
@@ -1841,10 +1865,15 @@ def print_vouchers(voucher_group_id):
             flash('Acesso negado a este site.', 'error')
             return redirect(url_for('dashboard'))
     
-    logging.info(f"Print page opened for voucher group {voucher_group_id} by {current_user.username}")
+    # Get print format from URL parameter
+    print_format = request.args.get('format', 'a4')
     
-    # Render HTML page optimized for printing
-    return render_template('vendor/print_vouchers.html', voucher_group=voucher_group)
+    logging.info(f"Print page opened for voucher group {voucher_group_id} ({print_format}) by {current_user.username}")
+    
+    # Render HTML page optimized for printing with selected format
+    return render_template('vendor/print_vouchers_clean.html', 
+                         voucher_group=voucher_group, 
+                         print_format=print_format)
 
 @app.route('/vendor/sales_reports')
 @login_required  

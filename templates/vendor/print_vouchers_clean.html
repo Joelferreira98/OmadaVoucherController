@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vouchers - {{ voucher_group.plan.name }}</title>
+    <style>
+        /* Print-only styles */
+        @media print {
+            @page {
+                margin: 0.5cm;
+                {% if print_format == '50x80mm' %}
+                size: 50mm 80mm;
+                {% else %}
+                size: A4;
+                {% endif %}
+            }
+            
+            body { 
+                margin: 0; 
+                padding: 0; 
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+            }
+            
+            .no-print { 
+                display: none !important; 
+            }
+        }
+
+        /* Screen styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .print-preview {
+            background: white;
+            padding: 20px;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            {% if print_format == '50x80mm' %}
+            max-width: 50mm;
+            {% else %}
+            max-width: 21cm;
+            {% endif %}
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .voucher-grid {
+            {% if print_format == 'a4' %}
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2mm;
+            {% endif %}
+        }
+
+        .voucher-ticket {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            {% if print_format == 'a4' %}
+            width: 45mm;
+            height: 25mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            break-inside: avoid;
+            {% else %}
+            width: 46mm;
+            height: 76mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            page-break-after: always;
+            margin-bottom: 5mm;
+            {% endif %}
+            position: relative;
+        }
+
+        {% if print_format == 'a4' %}
+        .voucher-ticket:nth-child(32n+32) {
+            page-break-after: always;
+        }
+        
+        .cut-line {
+            position: absolute;
+            color: #ccc;
+            font-size: 8px;
+        }
+        
+        .cut-line.horizontal {
+            top: -1px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .cut-line.vertical {
+            right: -1px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        {% endif %}
+
+        .site-name {
+            font-weight: bold;
+            font-size: {% if print_format == '50x80mm' %}14px{% else %}10px{% endif %};
+            margin-bottom: 3px;
+        }
+
+        .voucher-code {
+            font-weight: bold;
+            font-size: {% if print_format == '50x80mm' %}18px{% else %}12px{% endif %};
+            margin: 5px 0;
+            letter-spacing: 1px;
+            border: 1px solid #333;
+            padding: 3px;
+            background-color: #f8f9fa;
+        }
+
+        .plan-name {
+            font-size: {% if print_format == '50x80mm' %}12px{% else %}9px{% endif %};
+            color: #666;
+            margin: 3px 0;
+        }
+
+        .price {
+            font-weight: bold;
+            font-size: {% if print_format == '50x80mm' %}14px{% else %}10px{% endif %};
+            color: #28a745;
+        }
+
+        {% if print_format == '50x80mm' %}
+        .qr-placeholder {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #ddd;
+            margin: 5px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #999;
+        }
+        {% endif %}
+
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <!-- Controls (hidden when printing) -->
+    <div class="controls no-print">
+        <h4>{{ voucher_group.quantity }} Vouchers - {{ voucher_group.plan.name }}</h4>
+        <p>Formato: {{ '50x80mm (Térmico)' if print_format == '50x80mm' else 'A4' }}</p>
+        <button onclick="window.print()" class="btn">
+            <i class="fas fa-print"></i> Imprimir
+        </button>
+        <a href="{{ url_for('choose_print_format', voucher_group_id=voucher_group.id) }}" class="btn btn-secondary">
+            Trocar Formato
+        </a>
+        <a href="{{ url_for('voucher_history' if current_user.user_type == 'vendor' else 'admin_voucher_history') }}" class="btn btn-secondary">
+            Voltar ao Histórico
+        </a>
+    </div>
+
+    <!-- Vouchers -->
+    <div class="print-preview">
+        <div class="voucher-grid">
+            {% set has_real_codes = voucher_group.voucher_codes and not (voucher_group.voucher_codes[0] and 'OMADA-' in voucher_group.voucher_codes[0]|string) %}
+            
+            {% if has_real_codes %}
+                {% for code in voucher_group.voucher_codes %}
+                <div class="voucher-ticket">
+                    {% if print_format == 'a4' %}
+                    <div class="cut-line horizontal">✂</div>
+                    <div class="cut-line vertical">✂</div>
+                    {% endif %}
+                    
+                    <div class="site-name">{{ voucher_group.site.name }}</div>
+                    <div class="voucher-code">{{ code }}</div>
+                    <div class="plan-name">{{ voucher_group.plan.name }}</div>
+                    <div class="price">R$ {{ "%.2f"|format(voucher_group.plan.price)|replace('.', ',') }}</div>
+                    
+                    {% if print_format == '50x80mm' %}
+                    <div class="qr-placeholder">QR</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for i in range(voucher_group.quantity) %}
+                <div class="voucher-ticket">
+                    {% if print_format == 'a4' %}
+                    <div class="cut-line horizontal">✂</div>
+                    <div class="cut-line vertical">✂</div>
+                    {% endif %}
+                    
+                    <div class="site-name">{{ voucher_group.site.name }}</div>
+                    <div class="voucher-code">
+                        {% if voucher_group.voucher_codes and voucher_group.voucher_codes[i] %}
+                            {{ voucher_group.voucher_codes[i] }}
+                        {% else %}
+                            CÓDIGO-{{ "%03d"|format(i+1) }}
+                        {% endif %}
+                    </div>
+                    <div class="plan-name">{{ voucher_group.plan.name }}</div>
+                    <div class="price">R$ {{ "%.2f"|format(voucher_group.plan.price)|replace('.', ',') }}</div>
+                    
+                    {% if print_format == '50x80mm' %}
+                    <div class="qr-placeholder">QR</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Auto-open print dialog when page loads (optional)
+        // window.addEventListener('load', function() {
+        //     setTimeout(function() {
+        //         window.print();
+        //     }, 1000);
+        // });
+    </script>
+</body>
+</html>

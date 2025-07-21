@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Escolher Formato de Impressão{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-print me-2"></i>Escolher Formato de Impressão
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted">Vouchers Criados:</h6>
+                        <p class="mb-1"><strong>{{ voucher_group.quantity }}</strong> vouchers do plano <strong>{{ voucher_group.plan.name }}</strong></p>
+                        <p class="text-muted small">Site: {{ voucher_group.site.name }}</p>
+                    </div>
+
+                    <div class="row">
+                        <!-- A4 Format -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card border h-100 format-card" onclick="selectFormat('a4')">
+                                <div class="card-body text-center">
+                                    <div class="mb-3">
+                                        <i class="fas fa-file-alt fa-3x text-primary"></i>
+                                    </div>
+                                    <h6 class="card-title">Formato A4</h6>
+                                    <p class="text-muted small mb-3">
+                                        • 32 vouchers por página<br>
+                                        • Layout 4x8 para corte<br>
+                                        • Ideal para impressora comum
+                                    </p>
+                                    <button type="button" class="btn btn-outline-primary">
+                                        <i class="fas fa-print me-1"></i>Imprimir A4
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 50x80mm Format -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card border h-100 format-card" onclick="selectFormat('50x80mm')">
+                                <div class="card-body text-center">
+                                    <div class="mb-3">
+                                        <i class="fas fa-receipt fa-3x text-success"></i>
+                                    </div>
+                                    <h6 class="card-title">Formato 50x80mm</h6>
+                                    <p class="text-muted small mb-3">
+                                        • 1 voucher por página<br>
+                                        • Layout para ticket térmico<br>
+                                        • Ideal para impressora térmica
+                                    </p>
+                                    <button type="button" class="btn btn-outline-success">
+                                        <i class="fas fa-receipt me-1"></i>Imprimir Térmico
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12 text-center">
+                            <a href="{{ url_for('voucher_history' if current_user.user_type == 'vendor' else 'admin_voucher_history') }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar ao Histórico
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function selectFormat(format) {
+    // Redirect to print page with selected format
+    window.location.href = `{{ url_for('print_vouchers', voucher_group_id=voucher_group.id) }}?format=${format}`;
+}
+
+// Add hover effects
+document.addEventListener('DOMContentLoaded', function() {
+    const formatCards = document.querySelectorAll('.format-card');
+    
+    formatCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.classList.add('border-primary', 'shadow');
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.classList.remove('border-primary', 'shadow');
+        });
+    });
+});
+</script>
+
+<style>
+.format-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.format-card:hover {
+    transform: translateY(-2px);
+}
+
+.format-card .btn {
+    pointer-events: none;
+}
+</style>
+{% endblock %}
