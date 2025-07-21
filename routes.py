@@ -1233,7 +1233,7 @@ def admin_generate_vouchers():
                 logging.info(f"Admin {current_user.username} created {form.quantity.data} vouchers for plan {plan.name}")
                 
                 # Redirect to print page after successful generation
-                return redirect(url_for('print_vouchers', group_id=voucher_group.id))
+                return redirect(url_for('print_vouchers', voucher_group_id=voucher_group.id))
             else:
                 error_msg = result.get('msg', 'Erro desconhecido') if result else 'Falha na comunicação'
                 flash(f'Erro ao criar vouchers: {error_msg}', 'error')
