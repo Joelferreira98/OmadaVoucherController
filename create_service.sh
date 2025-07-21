@@ -16,7 +16,7 @@ User=root
 Group=root
 WorkingDirectory=/opt/voucher-app
 Environment=PATH=/opt/voucher-app/venv/bin
-ExecStart=/opt/voucher-app/venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 2 --timeout 30 --keep-alive 2 --max-requests 1000 --preload main:app
+ExecStart=/opt/voucher-app/venv/bin/gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 30 --keep-alive 2 --max-requests 1000 --preload main:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5
