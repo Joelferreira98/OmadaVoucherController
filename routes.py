@@ -2231,6 +2231,80 @@ def delete_plan(plan_id):
         logging.error(f"Error deleting plan {plan_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# CRUD Routes for Voucher Groups
+@app.route('/admin/vouchers/<int:group_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_voucher_group(group_id):
+    """Edit voucher group"""
+    if not has_permission('vendor'):
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    voucher_group = VoucherGroup.query.get_or_404(group_id)
+    
+    # Check access based on user type
+    if not check_site_access(current_user, voucher_group.site_id):
+        flash('Acesso negado a este grupo de vouchers.', 'error')
+        return redirect(url_for('voucher_history'))
+    
+    form = VoucherGroupEditForm(obj=voucher_group)
+    
+    if form.validate_on_submit():
+        try:
+            # Only allow editing of name and notes, not critical data
+            voucher_group.name = form.name.data
+            voucher_group.notes = form.notes.data
+            db.session.commit()
+            flash('Grupo de vouchers atualizado com sucesso!', 'success')
+            logging.info(f"Voucher group {group_id} updated by {current_user.username}")
+            return redirect(url_for('voucher_history'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao atualizar grupo: {str(e)}', 'error')
+            logging.error(f"Error updating voucher group {group_id}: {str(e)}")
+    
+    return render_template('admin/edit_voucher_group.html', 
+                         form=form, voucher_group=voucher_group)
+
+@app.route('/admin/vouchers/<int:group_id>/delete', methods=['POST'])
+@login_required
+def delete_voucher_group(group_id):
+    """Delete voucher group (and from Omada Controller)"""
+    if not has_permission('admin'):
+        return jsonify({'success': False, 'error': 'Apenas administradores podem excluir vouchers'}), 403
+    
+    voucher_group = VoucherGroup.query.get_or_404(group_id)
+    
+    # Check access
+    if not check_site_access(current_user, voucher_group.site_id):
+        return jsonify({'success': False, 'error': 'Acesso negado'}), 403
+    
+    try:
+        # Try to delete from Omada Controller first
+        if voucher_group.omada_group_id:
+            try:
+                success = omada_api.delete_voucher_groups([voucher_group.omada_group_id])
+                if not success:
+                    logging.warning(f"Failed to delete voucher group from Omada: {voucher_group.omada_group_id}")
+            except Exception as omada_error:
+                logging.error(f"Omada deletion error: {str(omada_error)}")
+                # Continue with local deletion even if Omada fails
+        
+        # Delete from local database
+        group_info = f"{voucher_group.plan.name} ({voucher_group.quantity} vouchers)"
+        db.session.delete(voucher_group)
+        db.session.commit()
+        
+        logging.info(f"Voucher group {group_id} deleted by {current_user.username}")
+        return jsonify({
+            'success': True, 
+            'message': f'Grupo de vouchers "{group_info}" excluído com sucesso'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting voucher group {group_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Template filters
 @app.template_filter('currency')
 def currency_filter(value):
