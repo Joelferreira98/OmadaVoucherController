@@ -581,9 +581,9 @@ def sync_voucher_statuses_from_omada(site_id: int):
                                 price=0.00,  # Unknown price for imported vouchers
                                 site_id=site_id,
                                 is_active=True,
-                                data_limit=data_limit,
+                                data_quota=data_limit,  # Correct field name
                                 code_length=8,
-                                limit_type='duration'
+                                limit_type=2  # Unlimited type
                             )
                             db.session.add(existing_plan)
                             db.session.flush()  # Get the ID
@@ -612,6 +612,9 @@ def sync_voucher_statuses_from_omada(site_id: int):
                             in_use_count = sum(1 for v in voucher_data_list if v.get('status') == 2)
                             expired_count = sum(1 for v in voucher_data_list if v.get('status') == 3)
                             
+                            # Calculate total value based on quantity and plan price
+                            total_value = len(voucher_data_list) * existing_plan.price
+                            
                             # Create voucher group
                             voucher_group = VoucherGroup(
                                 plan_id=existing_plan.id,
@@ -620,6 +623,7 @@ def sync_voucher_statuses_from_omada(site_id: int):
                                 omada_group_id=omada_group_id,
                                 created_by_id=import_user.id,
                                 voucher_codes=voucher_codes,
+                                total_value=total_value,
                                 created_at=datetime.now(),
                                 unused_count=unused_count,
                                 used_count=used_count,
