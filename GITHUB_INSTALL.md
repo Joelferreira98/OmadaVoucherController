@@ -168,7 +168,7 @@ sudo chown -R voucher:voucher /opt/voucher-app/
 
 # Atualizar dependências se necessário
 cd /opt/voucher-app
-sudo -u voucher ./venv/bin/pip install --upgrade -r requirements.txt
+sudo -u voucher ./venv/bin/pip install --upgrade -r app_requirements.txt
 
 # Reiniciar aplicação
 sudo supervisorctl start voucher-app
