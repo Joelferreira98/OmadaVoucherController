@@ -2006,6 +2006,10 @@ def vendor_sales_reports():
             date_stats[date_key]['vouchers'] += 1
             date_stats[date_key]['revenue'] += voucher['plan_price']
         
+        # Debug logging
+        logging.info(f"Sales report for {current_user.username}: {total_vouchers_sold} sold, R$ {total_revenue:.2f}")
+        logging.info(f"Template context: sold_vouchers={len(sold_vouchers)}, plan_stats={len(plan_stats)}, date_stats={len(date_stats)}")
+        
         return render_template('vendor/sales_reports.html',
                              site=vendor_site.site,
                              sold_vouchers=sold_vouchers,
