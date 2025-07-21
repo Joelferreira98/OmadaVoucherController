@@ -26,7 +26,7 @@ sudo chown -R $USER:$USER /opt/voucher-app
 cd /opt/voucher-app
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r app_requirements.txt
 
 # 4. Configurar .env (veja seção abaixo)
 nano .env
@@ -56,7 +56,7 @@ sudo chown -R voucher:voucher /opt/voucher-app
 cd /opt/voucher-app
 sudo -u voucher python3 -m venv venv
 sudo -u voucher ./venv/bin/pip install --upgrade pip
-sudo -u voucher ./venv/bin/pip install -r requirements.txt
+sudo -u voucher ./venv/bin/pip install -r app_requirements.txt
 
 # 5. Configurar .env
 sudo -u voucher nano .env
