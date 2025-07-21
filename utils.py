@@ -488,66 +488,197 @@ def sync_sites_from_omada():
         raise e
 
 def sync_voucher_statuses_from_omada(site_id: int):
-    """Sync voucher statuses from Omada Controller for a specific site"""
+    """
+    Sync voucher statuses from Omada Controller for a specific site
+    Also discovers and imports voucher groups that exist in Omada but not locally
+    """
     from omada_api import omada_api
-    from models import Site, VoucherGroup
+    from models import Site, VoucherGroup, VoucherPlan, User, AdminSite
     from app import db
     import logging
     
-    # Get the site from database
-    site = Site.query.get(site_id)
-    if not site:
-        logging.error(f"Site with id {site_id} not found")
-        return False
-    
-    # Get voucher groups for this site from Omada Controller
-    response = omada_api.get_voucher_groups(site.site_id)
-    
-    if response and response.get('errorCode') == 0:
-        voucher_groups_data = response.get('result', {}).get('data', [])
+    try:
+        # Get site from database
+        site = Site.query.get(site_id)
+        if not site:
+            logging.error(f"Site with ID {site_id} not found in database")
+            return False
         
-        for group_data in voucher_groups_data:
-            omada_group_id = group_data.get('id')
-            if omada_group_id:
-                # Find the corresponding voucher group in our database
-                voucher_group = VoucherGroup.query.filter_by(omada_group_id=omada_group_id).first()
+        logging.info(f"Syncing voucher statuses for site: {site.name} (ID: {site_id})")
+        
+        # Get ALL voucher groups from Omada Controller (paginated)
+        all_voucher_groups = []
+        page = 1
+        page_size = 100
+        
+        while True:
+            response = omada_api.get_voucher_groups(site.site_id, page=page, page_size=page_size)
+            
+            if not response or response.get('errorCode') != 0:
+                if page == 1:
+                    logging.error(f"Failed to get voucher groups from Omada Controller")
+                    return False
+                else:
+                    break
+            
+            result = response.get('result', {})
+            data = result.get('data', [])
+            
+            if not data:
+                break
                 
-                if voucher_group:
-                    # Update status counts from Omada Controller
-                    voucher_group.unused_count = group_data.get('unusedCount', 0)
-                    voucher_group.used_count = group_data.get('usedCount', 0)
-                    voucher_group.in_use_count = group_data.get('inUseCount', 0)
-                    voucher_group.expired_count = group_data.get('expiredCount', 0)
-                    voucher_group.last_sync = datetime.utcnow()
-                    
-                    # Try to sync real voucher codes if we don't have them or have placeholders
-                    if (not voucher_group.voucher_codes or 
-                        any('OMADA-' in str(code) for code in voucher_group.voucher_codes)):
-                        try:
-                            group_details = omada_api.get_voucher_group_detail(site.site_id, omada_group_id)
-                            if group_details and group_details.get('errorCode') == 0:
-                                voucher_data_list = group_details.get('result', {}).get('data', [])
-                                real_codes = [voucher['code'] for voucher in voucher_data_list if 'code' in voucher]
-                                if real_codes:
-                                    voucher_group.voucher_codes = real_codes
-                                    logging.info(f"Updated voucher group {voucher_group.id} with {len(real_codes)} real codes")
-                        except Exception as e:
-                            logging.error(f"Error syncing codes for group {voucher_group.id}: {str(e)}")
-                    
-                    # Update overall status based on counts
-                    if voucher_group.expired_count > 0 or voucher_group.used_count > 0 or voucher_group.in_use_count > 0:
-                        voucher_group.status = 'sold'
-                    else:
-                        voucher_group.status = 'generated'
-                    
-                    logging.info(f"Updated voucher group {voucher_group.id}: unused={voucher_group.unused_count}, "
-                               f"used={voucher_group.used_count}, in_use={voucher_group.in_use_count}, "
-                               f"expired={voucher_group.expired_count}, status={voucher_group.status}")
+            all_voucher_groups.extend(data)
+            
+            # Check if there are more pages
+            total_rows = result.get('totalRows', 0)
+            if len(all_voucher_groups) >= total_rows:
+                break
+                
+            page += 1
         
+        logging.info(f"Found {len(all_voucher_groups)} voucher groups in Omada Controller")
+        
+        total_synced = 0
+        new_groups_imported = 0
+        
+        for group_data in all_voucher_groups:
+            omada_group_id = group_data.get('id')
+            if not omada_group_id:
+                continue
+            
+            # Find the corresponding voucher group in our database
+            voucher_group = VoucherGroup.query.filter_by(omada_group_id=omada_group_id).first()
+            
+            if not voucher_group:
+                # This voucher group exists in Omada but not locally - import it
+                logging.info(f"Importing missing voucher group {omada_group_id}")
+                
+                # Get detailed information about this group
+                group_details = omada_api.get_voucher_group_detail(site.site_id, omada_group_id)
+                
+                if group_details and group_details.get('errorCode') == 0:
+                    result_data = group_details.get('result', {})
+                    group_info = result_data.get('groupInfo', {})
+                    voucher_data_list = result_data.get('data', [])
+                    
+                    if voucher_data_list:
+                        # Create or find a suitable plan
+                        plan_name = f"Importado - {group_info.get('name', 'Sem Nome')}"[:50]
+                        duration_limit = group_info.get('durationLimit', 60)
+                        data_limit = group_info.get('dataLimit', 0)
+                        
+                        # Try to find existing plan with similar characteristics
+                        existing_plan = VoucherPlan.query.filter_by(
+                            site_id=site_id,
+                            duration=duration_limit
+                        ).first()
+                        
+                        if not existing_plan:
+                            # Create new plan for imported vouchers
+                            existing_plan = VoucherPlan(
+                                name=plan_name,
+                                duration=duration_limit,
+                                price=0.00,  # Unknown price for imported vouchers
+                                site_id=site_id,
+                                is_active=True,
+                                data_limit=data_limit,
+                                code_length=8,
+                                limit_type='duration'
+                            )
+                            db.session.add(existing_plan)
+                            db.session.flush()  # Get the ID
+                        
+                        # Find appropriate user to attribute import to
+                        import_user = None
+                        
+                        # Prefer admin users for this site
+                        admin_sites = AdminSite.query.filter_by(site_id=site_id).all()
+                        if admin_sites:
+                            import_user = User.query.get(admin_sites[0].admin_id)
+                        
+                        # Fallback to master or any user
+                        if not import_user:
+                            import_user = (User.query.filter_by(user_type='master').first() or
+                                         User.query.filter_by(user_type='admin').first() or
+                                         User.query.first())
+                        
+                        if import_user:
+                            # Extract voucher codes
+                            voucher_codes = [v.get('code', f'CODE-{i}') for i, v in enumerate(voucher_data_list)]
+                            
+                            # Count statuses
+                            unused_count = sum(1 for v in voucher_data_list if v.get('status') == 0)
+                            used_count = sum(1 for v in voucher_data_list if v.get('status') == 1)
+                            in_use_count = sum(1 for v in voucher_data_list if v.get('status') == 2)
+                            expired_count = sum(1 for v in voucher_data_list if v.get('status') == 3)
+                            
+                            # Create voucher group
+                            voucher_group = VoucherGroup(
+                                plan_id=existing_plan.id,
+                                site_id=site_id,
+                                quantity=len(voucher_data_list),
+                                omada_group_id=omada_group_id,
+                                created_by_id=import_user.id,
+                                voucher_codes=voucher_codes,
+                                created_at=datetime.now(),
+                                unused_count=unused_count,
+                                used_count=used_count,
+                                in_use_count=in_use_count,
+                                expired_count=expired_count,
+                                last_sync=datetime.now(),
+                                status='sold' if (expired_count + used_count + in_use_count) > 0 else 'generated'
+                            )
+                            db.session.add(voucher_group)
+                            new_groups_imported += 1
+                            
+                            logging.info(f"Imported voucher group {omada_group_id} with {len(voucher_data_list)} vouchers")
+            
+            if voucher_group:
+                # Update existing voucher group with fresh data from Omada
+                try:
+                    group_details = omada_api.get_voucher_group_detail(site.site_id, omada_group_id)
+                    if group_details and group_details.get('errorCode') == 0:
+                        voucher_data_list = group_details.get('result', {}).get('data', [])
+                        
+                        # Count vouchers by status
+                        unused_count = sum(1 for v in voucher_data_list if v.get('status') == 0)
+                        used_count = sum(1 for v in voucher_data_list if v.get('status') == 1)
+                        in_use_count = sum(1 for v in voucher_data_list if v.get('status') == 2)
+                        expired_count = sum(1 for v in voucher_data_list if v.get('status') == 3)
+                        
+                        # Update counts
+                        voucher_group.unused_count = unused_count
+                        voucher_group.used_count = used_count
+                        voucher_group.in_use_count = in_use_count
+                        voucher_group.expired_count = expired_count
+                        voucher_group.last_sync = datetime.now()
+                        
+                        # Update voucher codes if we have real ones
+                        real_codes = [v.get('code') for v in voucher_data_list if v.get('code') and not v.get('code', '').startswith('OMADA-')]
+                        if real_codes and len(real_codes) == len(voucher_data_list):
+                            voucher_group.voucher_codes = real_codes
+                        
+                        # Update status
+                        voucher_group.status = 'sold' if (expired_count + used_count + in_use_count) > 0 else 'generated'
+                        
+                        total_synced += 1
+                        
+                except Exception as e:
+                    logging.error(f"Error updating voucher group {omada_group_id}: {str(e)}")
+        
+        # Commit all changes
         db.session.commit()
+        
+        if new_groups_imported > 0:
+            logging.info(f"Imported {new_groups_imported} new voucher groups from Omada Controller")
+        
+        logging.info(f"Successfully synced {total_synced} voucher groups for site {site_id}")
         return True
-    
-    return False
+        
+    except Exception as e:
+        logging.error(f"Error syncing voucher statuses from Omada: {str(e)}")
+        db.session.rollback()
+        return False
 
 
 # Permission Management Functions
