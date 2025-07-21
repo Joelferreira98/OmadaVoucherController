@@ -60,6 +60,13 @@ login_manager.login_message = 'Por favor, faça login para acessar esta página.
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
 
+# Configure CSRF exemptions for API routes
+@csrf.exempt
+def exempt_api_routes():
+    # Exempt API routes from CSRF protection
+    api_routes = ['/api/sync-sites', '/api/sync-vouchers', '/api/sync-status']
+    return request.endpoint and any(route in request.path for route in api_routes)
+
 with app.app_context():
     # Import models to create tables
     import models

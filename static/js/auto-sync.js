@@ -369,7 +369,7 @@ class AutoSyncManager {
     getCurrentSiteId() {
         // Try multiple methods to get current site ID
         
-        // Method 1: From page data attribute
+        // Method 1: From page data attribute  
         const pageData = document.querySelector('[data-site-id]');
         if (pageData) {
             const siteId = pageData.getAttribute('data-site-id');
