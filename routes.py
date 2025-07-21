@@ -8,7 +8,8 @@ from app import app, db, login_manager
 from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup, OmadaConfig, CashRegister
 from forms import (LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, 
                   OmadaConfigForm, CashRegisterForm, UserEditForm, 
-                  ChangePasswordForm, AdminChangePasswordForm, VoucherGroupEditForm)
+                  ChangePasswordForm, AdminChangePasswordForm, VoucherGroupEditForm,
+                  ImportVoucherGroupsForm)
 from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada, has_permission, check_site_access, get_accessible_sites, can_manage_user, get_vendor_site_for_user
 from omada_api import omada_api
 
@@ -2244,6 +2245,195 @@ def api_sync_status():
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/admin/import-voucher-groups', methods=['GET', 'POST'])
+@login_required
+def import_voucher_groups():
+    """Import voucher groups interface"""
+    if not has_permission('admin'):
+        flash('Acesso negado.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    form = ImportVoucherGroupsForm()
+    
+    # Populate site choices based on user access
+    accessible_sites = get_accessible_sites()
+    form.site_id.choices = [(site.id, site.name) for site in accessible_sites]
+    
+    # Populate plan choices (will be updated via AJAX based on site selection)
+    form.default_plan_id.choices = []
+    
+    if form.validate_on_submit():
+        # This will be handled via AJAX, not form submission
+        pass
+    
+    return render_template('admin/import_voucher_groups.html', form=form)
+
+@app.route('/api/scan-missing-voucher-groups/<int:site_id>')
+@login_required
+def api_scan_missing_voucher_groups(site_id):
+    """Scan for voucher groups that exist in Omada but not locally"""
+    if not has_permission('admin'):
+        return jsonify({'success': False, 'error': 'Acesso negado'}), 403
+    
+    if not check_site_access(site_id):
+        return jsonify({'success': False, 'error': 'Acesso negado ao site'}), 403
+    
+    try:
+        from omada_api import omada_api
+        
+        site = Site.query.get_or_404(site_id)
+        
+        # Get all voucher groups from Omada Controller
+        all_voucher_groups = []
+        page = 1
+        page_size = 100
+        
+        while True:
+            response = omada_api.get_voucher_groups(site.site_id, page=page, page_size=page_size)
+            
+            if not response or response.get('errorCode') != 0:
+                break
+            
+            result = response.get('result', {})
+            data = result.get('data', [])
+            
+            if not data:
+                break
+                
+            all_voucher_groups.extend(data)
+            
+            # Check if there are more pages
+            total_rows = result.get('totalRows', 0)
+            if len(all_voucher_groups) >= total_rows:
+                break
+                
+            page += 1
+        
+        # Filter out groups that already exist locally
+        missing_groups = []
+        existing_omada_ids = [vg.omada_group_id for vg in VoucherGroup.query.filter_by(site_id=site_id).all()]
+        
+        for group_data in all_voucher_groups:
+            omada_group_id = group_data.get('id')
+            if omada_group_id and omada_group_id not in existing_omada_ids:
+                # Get detailed information about this group
+                group_details = omada_api.get_voucher_group_detail(site.site_id, omada_group_id)
+                
+                if group_details and group_details.get('errorCode') == 0:
+                    result_data = group_details.get('result', {})
+                    group_info = result_data.get('groupInfo', {})
+                    voucher_data_list = result_data.get('data', [])
+                    
+                    if voucher_data_list:
+                        missing_groups.append({
+                            'omada_id': omada_group_id,
+                            'name': group_info.get('name', 'Sem Nome'),
+                            'voucher_count': len(voucher_data_list),
+                            'duration': group_info.get('durationLimit', 60),
+                            'data_limit': group_info.get('dataLimit', 0),
+                            'group_info': group_info,
+                            'voucher_data': voucher_data_list
+                        })
+        
+        return jsonify({
+            'success': True,
+            'groups': missing_groups
+        })
+        
+    except Exception as e:
+        logging.error(f"Error scanning missing voucher groups: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/import-voucher-groups', methods=['POST'])
+@login_required
+def api_import_voucher_groups():
+    """Import selected voucher groups with specified plans"""
+    if not has_permission('admin'):
+        return jsonify({'success': False, 'error': 'Acesso negado'}), 403
+    
+    try:
+        data = request.get_json()
+        site_id = data.get('site_id')
+        groups_to_import = data.get('groups', [])
+        
+        if not check_site_access(site_id):
+            return jsonify({'success': False, 'error': 'Acesso negado ao site'}), 403
+        
+        imported_count = 0
+        
+        for group_import in groups_to_import:
+            group_data = group_import.get('group')
+            plan_id = group_import.get('plan_id')
+            
+            # Validate plan belongs to the site
+            plan = VoucherPlan.query.filter_by(id=plan_id, site_id=site_id).first()
+            if not plan:
+                continue
+            
+            # Extract voucher codes
+            voucher_codes = [v.get('code', f'CODE-{i}') for i, v in enumerate(group_data['voucher_data'])]
+            
+            # Count statuses
+            unused_count = sum(1 for v in group_data['voucher_data'] if v.get('status') == 0)
+            used_count = sum(1 for v in group_data['voucher_data'] if v.get('status') == 1)
+            in_use_count = sum(1 for v in group_data['voucher_data'] if v.get('status') == 2)
+            expired_count = sum(1 for v in group_data['voucher_data'] if v.get('status') == 3)
+            
+            # Calculate total value
+            total_value = len(group_data['voucher_data']) * plan.price
+            
+            # Create voucher group
+            voucher_group = VoucherGroup(
+                plan_id=plan.id,
+                site_id=site_id,
+                quantity=len(group_data['voucher_data']),
+                omada_group_id=group_data['omada_id'],
+                created_by_id=current_user.id,
+                voucher_codes=voucher_codes,
+                total_value=total_value,
+                created_at=datetime.now(),
+                unused_count=unused_count,
+                used_count=used_count,
+                in_use_count=in_use_count,
+                expired_count=expired_count,
+                last_sync=datetime.now(),
+                status='sold' if (expired_count + used_count + in_use_count) > 0 else 'generated'
+            )
+            
+            db.session.add(voucher_group)
+            imported_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'imported_count': imported_count
+        })
+        
+    except Exception as e:
+        logging.error(f"Error importing voucher groups: {str(e)}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get-site-plans/<int:site_id>')
+@login_required
+def api_get_site_plans(site_id):
+    """Get voucher plans for a specific site"""
+    if not check_site_access(site_id):
+        return jsonify({'success': False, 'error': 'Acesso negado'}), 403
+    
+    try:
+        plans = VoucherPlan.query.filter_by(site_id=site_id, is_active=True).all()
+        plans_data = [{'id': plan.id, 'name': plan.name, 'price': plan.price} for plan in plans]
+        
+        return jsonify({
+            'success': True,
+            'plans': plans_data
+        })
+    except Exception as e:
+        logging.error(f"Error getting site plans: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # CRUD Routes for Plans  
 @app.route('/admin/plans/<int:plan_id>/delete', methods=['POST'])

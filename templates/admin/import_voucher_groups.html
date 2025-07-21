@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Grupos de Vouchers{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Importar Grupos de Vouchers</h2>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Esta ferramenta permite importar grupos de vouchers que existem no Omada Controller 
+                        mas não estão registrados no sistema local. Você pode escolher qual plano será 
+                        associado aos vouchers importados.
+                    </p>
+
+                    <form method="POST" id="importForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.site_id.label(class="form-label") }}
+                                    {{ form.site_id(class="form-select") }}
+                                    {% if form.site_id.errors %}
+                                        <div class="text-danger">{{ form.site_id.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.default_plan_id.label(class="form-label") }}
+                                    {{ form.default_plan_id(class="form-select") }}
+                                    <small class="form-text text-muted">
+                                        Plano padrão para vouchers importados (pode ser personalizado por grupo)
+                                    </small>
+                                    {% if form.default_plan_id.errors %}
+                                        <div class="text-danger">{{ form.default_plan_id.errors[0] }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-primary" id="scanButton">
+                                <i class="bi bi-search"></i> Buscar Grupos para Importar
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Results section -->
+                    <div id="resultsSection" class="d-none">
+                        <hr>
+                        <h5>Grupos Encontrados para Importação</h5>
+                        <div id="groupsList"></div>
+                        
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-success" id="importSelectedButton">
+                                <i class="bi bi-download"></i> Importar Grupos Selecionados
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scanButton = document.getElementById('scanButton');
+    const resultsSection = document.getElementById('resultsSection');
+    const groupsList = document.getElementById('groupsList');
+    const importSelectedButton = document.getElementById('importSelectedButton');
+    let foundGroups = [];
+
+    scanButton.addEventListener('click', function() {
+        const siteId = document.getElementById('site_id').value;
+        if (!siteId) {
+            alert('Por favor, selecione um site.');
+            return;
+        }
+
+        scanButton.disabled = true;
+        scanButton.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm"></i> Buscando...';
+
+        fetch(`/api/scan-missing-voucher-groups/${siteId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    foundGroups = data.groups;
+                    displayGroups(foundGroups);
+                    resultsSection.classList.remove('d-none');
+                } else {
+                    alert('Erro ao buscar grupos: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Erro na comunicação com o servidor.');
+            })
+            .finally(() => {
+                scanButton.disabled = false;
+                scanButton.innerHTML = '<i class="bi bi-search"></i> Buscar Grupos para Importar';
+            });
+    });
+
+    function displayGroups(groups) {
+        if (groups.length === 0) {
+            groupsList.innerHTML = '<div class="alert alert-info">Nenhum grupo novo encontrado para importar.</div>';
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-striped">';
+        html += '<thead><tr>';
+        html += '<th><input type="checkbox" id="selectAll"> Selecionar</th>';
+        html += '<th>Nome</th>';
+        html += '<th>Vouchers</th>';
+        html += '<th>Duração</th>';
+        html += '<th>Plano</th>';
+        html += '</tr></thead><tbody>';
+
+        groups.forEach((group, index) => {
+            html += `<tr>
+                <td><input type="checkbox" name="groupSelect" value="${index}"></td>
+                <td>${group.name}</td>
+                <td>${group.voucher_count}</td>
+                <td>${group.duration} min</td>
+                <td>
+                    <select class="form-select form-select-sm" name="planSelect_${index}">
+                        ${getPlanOptions()}
+                    </select>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        groupsList.innerHTML = html;
+
+        // Setup select all functionality
+        document.getElementById('selectAll').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('input[name="groupSelect"]');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
+    }
+
+    function getPlanOptions() {
+        const planSelect = document.getElementById('default_plan_id');
+        let options = '';
+        for (let option of planSelect.options) {
+            if (option.value) {
+                const selected = option.selected ? 'selected' : '';
+                options += `<option value="${option.value}" ${selected}>${option.text}</option>`;
+            }
+        }
+        return options;
+    }
+
+    // Update plan choices when site changes
+    document.getElementById('site_id').addEventListener('change', function() {
+        const siteId = this.value;
+        if (!siteId) return;
+
+        fetch(`/api/get-site-plans/${siteId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const planSelect = document.getElementById('default_plan_id');
+                    planSelect.innerHTML = '<option value="">Selecione um plano</option>';
+                    
+                    data.plans.forEach(plan => {
+                        const option = document.createElement('option');
+                        option.value = plan.id;
+                        option.textContent = `${plan.name} - R$ ${plan.price.toFixed(2)}`;
+                        planSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading plans:', error);
+            });
+    });
+
+    importSelectedButton.addEventListener('click', function() {
+        const selectedGroups = [];
+        const checkboxes = document.querySelectorAll('input[name="groupSelect"]:checked');
+        
+        if (checkboxes.length === 0) {
+            alert('Por favor, selecione pelo menos um grupo para importar.');
+            return;
+        }
+
+        checkboxes.forEach(cb => {
+            const index = parseInt(cb.value);
+            const planSelect = document.querySelector(`select[name="planSelect_${index}"]`);
+            selectedGroups.push({
+                group: foundGroups[index],
+                plan_id: planSelect.value
+            });
+        });
+
+        importSelectedButton.disabled = true;
+        importSelectedButton.innerHTML = '<i class="bi bi-spinner-border spinner-border-sm"></i> Importando...';
+
+        fetch('/api/import-voucher-groups', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+            },
+            body: JSON.stringify({
+                site_id: document.getElementById('site_id').value,
+                groups: selectedGroups
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`${data.imported_count} grupos importados com sucesso!`);
+                window.location.href = "{{ url_for('admin_dashboard') }}";
+            } else {
+                alert('Erro ao importar grupos: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro na comunicação com o servidor.');
+        })
+        .finally(() => {
+            importSelectedButton.disabled = false;
+            importSelectedButton.innerHTML = '<i class="bi bi-download"></i> Importar Grupos Selecionados';
+        });
+    });
+});
+</script>
+{% endblock %}

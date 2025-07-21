@@ -73,6 +73,10 @@ class VoucherGroupEditForm(FlaskForm):
     name = StringField('Nome do Grupo', validators=[DataRequired(), Length(min=3, max=200)])
     notes = TextAreaField('Observações', validators=[Optional(), Length(max=1000)])
     quantity = IntegerField('Quantidade', validators=[DataRequired(), NumberRange(min=1)], render_kw={'readonly': True})
+
+class ImportVoucherGroupsForm(FlaskForm):
+    site_id = SelectField('Site', validators=[DataRequired()], coerce=int)
+    default_plan_id = SelectField('Plano Padrão', validators=[DataRequired()], coerce=int)
     status = SelectField('Status', choices=[
         ('generated', 'Gerado'),
         ('active', 'Ativo'),
