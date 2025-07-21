@@ -1463,6 +1463,7 @@ def cash_register_history():
 
 # Vendor Routes
 @app.route('/vendor')
+@app.route('/vendor/dashboard')
 @login_required
 def vendor_dashboard():
     # Vendor, Admin or Master can access - hierarchical permission
