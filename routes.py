@@ -2145,7 +2145,7 @@ def api_sync_sites():
         }), 500
 
 @app.route('/api/sync-vouchers/<int:site_id>', methods=['POST'])
-@login_required  
+@login_required
 def api_sync_vouchers(site_id):
     """API endpoint for syncing vouchers with Omada Controller"""
     try:

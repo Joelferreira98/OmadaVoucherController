@@ -342,27 +342,28 @@ class AutoSyncManager {
     }
     
     getCSRFToken() {
-        // Try to get CSRF token from meta tag
+        // Primary method: Get from Flask-WTF's hidden input in any form
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput && csrfInput.value) {
+            return csrfInput.value;
+        }
+        
+        // Fallback: Try to get CSRF token from meta tag
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         if (csrfMeta) {
             return csrfMeta.getAttribute('content');
         }
         
-        // Try to get from form hidden input
-        const csrfInput = document.querySelector('input[name="csrf_token"]');
-        if (csrfInput) {
-            return csrfInput.value;
-        }
-        
-        // Try to get from cookie
+        // Last resort: Try to get from cookie
         const cookies = document.cookie.split(';');
         for (let cookie of cookies) {
             const [name, value] = cookie.trim().split('=');
             if (name === 'csrf_token') {
-                return value;
+                return decodeURIComponent(value);
             }
         }
         
+        console.warn('No CSRF token found');
         return '';
     }
     
