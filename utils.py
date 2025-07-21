@@ -551,6 +551,33 @@ def sync_voucher_statuses_from_omada(site_id: int):
 
 
 # Permission Management Functions
+def get_vendor_site_for_user():
+    """
+    Get vendor site for current user, supporting hierarchical access
+    Returns vendor_site object or None
+    """
+    from flask_login import current_user
+    from flask import session
+    from models import VendorSite, Site
+    
+    if current_user.user_type == 'vendor':
+        # Standard vendor access
+        return VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    elif current_user.user_type in ['admin', 'master']:
+        # Admin/Master accessing vendor functions
+        current_site_id = session.get('selected_site_id')
+        if current_site_id:
+            current_site = Site.query.get(current_site_id)
+            if current_site:
+                # Create mock vendor_site object for compatibility
+                class MockVendorSite:
+                    def __init__(self, site):
+                        self.site = site
+                        self.site_id = site.id
+                        self.vendor_id = current_user.id
+                return MockVendorSite(current_site)
+    return None
+
 def has_permission(required_role):
     """
     Check if current user has the required permission level

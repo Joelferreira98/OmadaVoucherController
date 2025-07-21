@@ -9,7 +9,7 @@ from models import User, Site, AdminSite, VendorSite, VoucherPlan, VoucherGroup,
 from forms import (LoginForm, UserForm, VoucherPlanForm, VoucherGenerationForm, 
                   OmadaConfigForm, CashRegisterForm, UserEditForm, 
                   ChangePasswordForm, AdminChangePasswordForm, VoucherGroupEditForm)
-from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada, has_permission, check_site_access, get_accessible_sites, can_manage_user
+from utils import generate_voucher_pdf, format_currency, format_duration, generate_sales_report_data, sync_sites_from_omada, sync_voucher_statuses_from_omada, has_permission, check_site_access, get_accessible_sites, can_manage_user, get_vendor_site_for_user
 from omada_api import omada_api
 
 @login_manager.user_loader
@@ -1471,10 +1471,15 @@ def vendor_dashboard():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    # Get vendor site - supporting hierarchical access
+    vendor_site = get_vendor_site_for_user()
     if not vendor_site:
-        flash('Nenhum site atribuído.', 'error')
-        return redirect(url_for('dashboard'))
+        if current_user.user_type in ['admin', 'master']:
+            flash('Selecione um site no dashboard de administrador primeiro.', 'warning')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Nenhum site atribuído. Contate o administrador.', 'error')
+            return redirect(url_for('dashboard'))
     
     # Get available plans for this site
     plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
@@ -1518,10 +1523,14 @@ def create_vouchers():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    vendor_site = get_vendor_site_for_user()
     if not vendor_site:
-        flash('Nenhum site atribuído.', 'error')
-        return redirect(url_for('dashboard'))
+        if current_user.user_type in ['admin', 'master']:
+            flash('Selecione um site no dashboard de administrador primeiro.', 'warning')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Nenhum site atribuído. Contate o administrador.', 'error')
+            return redirect(url_for('dashboard'))
     
     # Get available plans
     plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
@@ -1548,10 +1557,14 @@ def generate_vouchers():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    vendor_site = get_vendor_site_for_user()
     if not vendor_site:
-        flash('Nenhum site atribuído.', 'error')
-        return redirect(url_for('dashboard'))
+        if current_user.user_type in ['admin', 'master']:
+            flash('Selecione um site no dashboard de administrador primeiro.', 'warning')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Nenhum site atribuído. Contate o administrador.', 'error')
+            return redirect(url_for('dashboard'))
     
     form = VoucherGenerationForm()
     plans = VoucherPlan.query.filter_by(site_id=vendor_site.site_id, is_active=True).all()
@@ -1711,10 +1724,14 @@ def voucher_history():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    vendor_site = get_vendor_site_for_user()
     if not vendor_site:
-        flash('Nenhum site atribuído.', 'error')
-        return redirect(url_for('dashboard'))
+        if current_user.user_type in ['admin', 'master']:
+            flash('Selecione um site no dashboard de administrador primeiro.', 'warning')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Nenhum site atribuído. Contate o administrador.', 'error')
+            return redirect(url_for('dashboard'))
     
     # Get filter parameters
     plan_id = request.args.get('plan_id', type=int)
@@ -1885,10 +1902,14 @@ def vendor_sales_reports():
         flash('Acesso negado.', 'error')
         return redirect(url_for('dashboard'))
     
-    vendor_site = VendorSite.query.filter_by(vendor_id=current_user.id).first()
+    vendor_site = get_vendor_site_for_user()
     if not vendor_site:
-        flash('Nenhum site atribuído.', 'error')
-        return redirect(url_for('dashboard'))
+        if current_user.user_type in ['admin', 'master']:
+            flash('Selecione um site no dashboard de administrador primeiro.', 'warning')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Nenhum site atribuído. Contate o administrador.', 'error')
+            return redirect(url_for('dashboard'))
     
     # Get date filters
     start_date = request.args.get('start_date')
