@@ -10,6 +10,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (July 2025)
 
+### Cash Register Voucher Tracking Bug Fix (July 23, 2025)
+- **Critical Problem**: After cash register closure, new vouchers were not appearing in the next cash register period
+- **Root Cause**: System was filtering vouchers by creation date after last closing, missing vouchers created before but sold after closing
+- **Impact**: Incomplete revenue tracking and missing voucher visibility in cash register management
+- **Solution Implemented**:
+  - Changed logic from date-based filtering to inclusion-based tracking
+  - System now tracks which voucher groups were included in previous cash register closings
+  - New cash register shows: vouchers never included in closings + vouchers with sales activity after last closing
+  - Prevents double-counting while ensuring all revenue is captured
+  - Enhanced voucher group tracking with last_sync timestamps for activity detection
+
 ### Revenue Calculation Bug Fix (July 10, 2025)
 - **Critical Problem**: Application was calculating revenue based on total vouchers generated instead of vouchers actually sold/used
 - **Impact**: Revenue reports showed inflated values (e.g., showing R$ 100 when only 1 of 10 vouchers was used)

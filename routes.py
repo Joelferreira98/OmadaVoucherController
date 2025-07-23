@@ -1303,12 +1303,33 @@ def cash_register():
     period_start = last_closing.period_end if last_closing else datetime(2020, 1, 1)
     period_end = datetime.now()
     
-    # Get voucher groups in this period
-    voucher_groups = VoucherGroup.query.filter(
-        VoucherGroup.site_id == current_site_id,
-        VoucherGroup.created_at >= period_start,
-        VoucherGroup.created_at <= period_end
-    ).all()
+    # Get voucher groups that are not yet included in any closed cash register
+    # This includes: new vouchers created after last closing + old vouchers with new sales
+    if last_closing:
+        # Get voucher group IDs that were included in previous cash register closings
+        closed_voucher_group_ids = set()
+        all_closings = CashRegister.query.filter_by(site_id=current_site_id).all()
+        for closing in all_closings:
+            if closing.voucher_groups_data:
+                closed_voucher_group_ids.update([vg['id'] for vg in closing.voucher_groups_data])
+        
+        # Get all voucher groups for the site
+        all_voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
+        
+        # Include voucher groups that:
+        # 1. Were not in previous closings, OR
+        # 2. Have activity (sales) after the last closing
+        voucher_groups = []
+        for vg in all_voucher_groups:
+            # If not in any previous closing, include it
+            if vg.id not in closed_voucher_group_ids:
+                voucher_groups.append(vg)
+            # If it was in a previous closing but has new sales activity, include it
+            elif vg.last_sync and vg.last_sync > period_start:
+                voucher_groups.append(vg)
+    else:
+        # No previous closings, get all voucher groups
+        voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
     
     # Calculate statistics - vouchers sold include: used, in_use, and expired
     total_generated = sum(vg.quantity for vg in voucher_groups)
@@ -1367,12 +1388,32 @@ def close_cash_register():
         period_start = last_closing.period_end if last_closing else datetime(2020, 1, 1)
         period_end = datetime.now()
         
-        # Get voucher groups in this period
-        voucher_groups = VoucherGroup.query.filter(
-            VoucherGroup.site_id == current_site_id,
-            VoucherGroup.created_at >= period_start,
-            VoucherGroup.created_at <= period_end
-        ).all()
+        # Get voucher groups that are not yet included in any closed cash register
+        if last_closing:
+            # Get voucher group IDs that were included in previous cash register closings
+            closed_voucher_group_ids = set()
+            all_closings = CashRegister.query.filter_by(site_id=current_site_id).all()
+            for closing in all_closings:
+                if closing.voucher_groups_data:
+                    closed_voucher_group_ids.update([vg['id'] for vg in closing.voucher_groups_data])
+            
+            # Get all voucher groups for the site
+            all_voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
+            
+            # Include voucher groups that:
+            # 1. Were not in previous closings, OR  
+            # 2. Have activity (sales) after the last closing
+            voucher_groups = []
+            for vg in all_voucher_groups:
+                # If not in any previous closing, include it
+                if vg.id not in closed_voucher_group_ids:
+                    voucher_groups.append(vg)
+                # If it was in a previous closing but has new sales activity, include it
+                elif vg.last_sync and vg.last_sync > period_start:
+                    voucher_groups.append(vg)
+        else:
+            # No previous closings, get all voucher groups
+            voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
         
         # Calculate statistics - vouchers sold include: used, in_use, and expired  
         total_generated = sum(vg.quantity for vg in voucher_groups)
