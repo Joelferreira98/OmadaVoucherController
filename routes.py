@@ -1051,7 +1051,6 @@ def admin_sales_reports():
     return render_template('admin/sales_reports.html',
                          current_site=current_site,
                          sold_vouchers=sold_vouchers,
-                         vendor_stats=vendor_stats,
                          plan_stats=plan_stats,
                          total_sold_vouchers=total_sold_vouchers,
                          total_revenue=total_revenue,

@@ -83,55 +83,7 @@
 
     <!-- Analytics Section -->
     <div class="row mb-4 g-3">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pb-0">
-                    <h6 class="fw-bold text-dark mb-0">Vendas por Vendedor</h6>
-                </div>
-                <div class="card-body pt-2">
-                    {% if vendor_stats %}
-                        <div class="table-responsive">
-                            <table class="table table-borderless table-sm mb-0">
-                                <thead>
-                                    <tr class="text-muted small">
-                                        <th class="border-0 fw-medium">Vendedor</th>
-                                        <th class="border-0 fw-medium text-center">Vendidos</th>
-                                        <th class="border-0 fw-medium text-end">Receita</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for vendor_name, stats in vendor_stats.items() %}
-                                    <tr>
-                                        <td class="py-2">
-                                            <div class="d-flex align-items-center">
-                                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                                    <i class="fas fa-user text-muted small"></i>
-                                                </div>
-                                                <span class="fw-medium">{{ stats.vendor_name }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="py-2 text-center">
-                                            <span class="badge bg-dark rounded-pill">{{ stats.vouchers }}</span>
-                                        </td>
-                                        <td class="py-2 text-end">
-                                            <span class="fw-bold">R$ {{ "%.2f"|format(stats.revenue)|replace('.', ',') }}</span>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-users fa-2x text-muted opacity-50"></i>
-                            <p class="text-muted mt-2 mb-0">Nenhuma venda encontrada</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6">
+        <div class="col-md-12">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-transparent border-0 pb-0">
                     <h6 class="fw-bold text-dark mb-0">Vendas por Plano</h6>
