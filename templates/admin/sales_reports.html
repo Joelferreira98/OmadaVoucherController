@@ -162,30 +162,30 @@
                                     {% for voucher in sold_vouchers %}
                                     <tr class="border-bottom border-light">
                                         <td class="ps-4 py-3">
-                                            <code class="text-dark bg-light px-2 py-1 rounded small">{{ voucher.code }}</code>
+                                            <code class="text-dark bg-light px-2 py-1 rounded small">{{ voucher.get('code', 'N/A') }}</code>
                                         </td>
                                         <td class="py-3">
-                                            <span class="fw-medium text-dark">{{ voucher.plan_name }}</span>
+                                            <span class="fw-medium text-dark">{{ voucher.get('plan_name', 'Desconhecido') }}</span>
                                         </td>
                                         <td class="py-3">
                                             <div class="d-flex align-items-center">
                                                 <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px;">
                                                     <i class="fas fa-user text-muted" style="font-size: 10px;"></i>
                                                 </div>
-                                                <span class="text-muted small">{{ voucher.created_by }}</span>
+                                                <span class="text-muted small">{{ voucher.get('created_by', 'Desconhecido') }}</span>
                                             </div>
                                         </td>
                                         <td class="py-3">
-                                            <span class="badge {% if voucher.status_class == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} rounded-pill">
-                                                {{ voucher.status }}
+                                            <span class="badge {% if voucher.get('status_class') == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} rounded-pill">
+                                                {{ voucher.get('status_text', 'Desconhecido') }}
                                             </span>
                                         </td>
                                         <td class="py-3 text-end">
-                                            <span class="fw-bold text-dark">R$ {{ "%.2f"|format(voucher.plan_price)|replace('.', ',') }}</span>
+                                            <span class="fw-bold text-dark">R$ {{ "%.2f"|format(voucher.get('unit_price', 0))|replace('.', ',') }}</span>
                                         </td>
                                         <td class="py-3 text-end pe-4">
-                                            <span class="text-muted small">{{ voucher.created_at.strftime('%d/%m/%Y') }}</span><br>
-                                            <span class="text-muted" style="font-size: 11px;">{{ voucher.created_at.strftime('%H:%M') }}</span>
+                                            <span class="text-muted small">{{ voucher.get('created_date', 'N/A') }}</span><br>
+                                            <span class="text-muted" style="font-size: 11px;">{{ voucher.get('created_time', '') }}</span>
                                         </td>
                                     </tr>
                                     {% endfor %}
