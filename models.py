@@ -128,6 +128,7 @@ class CashRegister(db.Model):
     total_revenue = db.Column(db.Float, default=0.0)
     expired_vouchers_removed = db.Column(db.Boolean, default=False)
     voucher_groups_data = db.Column(JSON)  # Snapshot of voucher groups at closing time
+    voucher_data = db.Column(JSON)  # Individual voucher data for new cash register system
     notes = db.Column(Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

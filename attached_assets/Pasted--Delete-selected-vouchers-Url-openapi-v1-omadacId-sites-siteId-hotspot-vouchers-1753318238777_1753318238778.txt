@@ -1,0 +1,77 @@
+
+
+## Delete selected vouchers
+
+
+**Url**:`/openapi/v1/{omadacId}/sites/{siteId}/hotspot/vouchers/batch/delete`
+
+
+**Method**:`POST`
+
+
+**produces**:`application/x-www-form-urlencoded,application/json`
+
+
+**consumes**:`*/*`
+
+
+**description**:<p>Delete selected vouchers with the given params.<br/><br/>The interface requires one of the permissions: <br/>Site Hotspot Manager Modify<br/><br/>The possible error code for the interface in the returned body is one of the following error codes (non generic error codes): <br/>-33000  -  This site does not exist.<br/>-33004  -  Operation failed because other operations (site copying, restoring, template synchronizing, etc.) are being performed on this site. Please wait and try again later.<br/>-44111  -  The Grant Type is Invalid.<br/>-44112  -  The access token has expired. Please re-initiate the refreshToken process to obtain the access token.</p>
+
+
+
+**Sample**:
+
+
+```javascript
+{
+  "type": 0,
+  "ids": [],
+  "groupId": "",
+  "searchKey": "",
+  "status": 0
+}
+```
+
+
+**Params**:
+
+
+**Params**:
+
+
+| name | description | in    | require | type | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|omadacId|Omada ID|path|true|string||
+|siteId|Site ID|path|true|string||
+|selectIdsOpenApiVO|SelectIdsOpenApiVO|body|true|SelectIdsOpenApiVO|SelectIdsOpenApiVO|
+|&emsp;&emsp;type|Select type. It should be a value as follows: 0: Represents selecting all vouchers in the voucher group, this selection does not pass parameter [ids]. 1: Parameter [ids] includes the IDs of vouchers in the voucher group to be selected. 2: Parameter [ids] includes the IDs of vouchers in the voucher group not to be selected||true|integer(int32)||
+|&emsp;&emsp;ids|ID list of vouchers. Voucher can be created using 'Create Voucher Group' interface, and Voucher ID can be obtained from 'Get Voucher Group Detail' interface||false|array|string|
+|&emsp;&emsp;groupId|Voucher Group ID. Voucher group can be created using 'Create Voucher Group' interface, and Voucher Group ID can be obtained from 'Get Voucher Group list' interface||true|string||
+|&emsp;&emsp;searchKey|Fuzzy query parameters, support field: voucher code||false|string||
+|&emsp;&emsp;status|voucher status filter query parameters. It should be a value as follows: 0: Unused vouchers, 1: In use vouchers, 2: Expired vouchers||false|integer(int32)||
+
+
+**status**:
+
+
+| code | description | schema |
+| -------- | -------- | ----- | 
+|200|OK|OperationResponseWithoutResult|
+
+
+**Responses**:
+
+
+| name | description | type | schema |
+| -------- | -------- | ----- |----- | 
+|errorCode||integer(int32)|integer(int32)|
+|msg||string||
+
+
+**Response Sample**:
+```javascript
+{
+	"errorCode": 0,
+	"msg": ""
+}
+```

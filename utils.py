@@ -9,7 +9,7 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from flask import current_app
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 def generate_voucher_pdf(voucher_group, voucher_codes: List[str], format_type: str = "a4") -> bytes:
     """Generate PDF with voucher codes in A4 or 50x80mm format"""
@@ -355,6 +355,102 @@ def format_duration(duration: int, unit: str) -> str:
     elif unit == 'days':
         return f"{duration}d"
     return f"{duration} {unit}"
+
+def get_sold_vouchers_from_omada(site_id: str, start_date=None, end_date=None):
+    """Get individual sold vouchers (status 1: in-use, 2: expired) from Omada Controller"""
+    from omada_api import OmadaAPI
+    from models import Site, VoucherPlan
+    
+    omada_api = OmadaAPI()
+    sold_vouchers = []
+    
+    try:
+        # First, get all voucher groups from Omada Controller
+        groups_response = omada_api.get_voucher_group_list(site_id)
+        
+        if not groups_response or groups_response.get('errorCode') != 0:
+            logging.error(f"Failed to get voucher groups from Omada Controller for site {site_id}")
+            return []
+        
+        voucher_groups = groups_response.get('result', {}).get('data', [])
+        logging.info(f"Found {len(voucher_groups)} voucher groups in Omada Controller")
+        
+        for group in voucher_groups:
+            group_id = group.get('id')
+            group_name = group.get('name', '')
+            unit_price = float(group.get('unitPrice', '0')) / 100  # Convert from cents
+            created_time = group.get('createdTime', 0)
+            
+            # Skip if outside date range
+            if start_date or end_date:
+                group_date = datetime.fromtimestamp(created_time / 1000) if created_time else datetime.now()
+                if start_date and group_date.date() < start_date:
+                    continue
+                if end_date and group_date.date() > end_date:
+                    continue
+            
+            # Get individual vouchers from this group
+            # First get in-use vouchers (status 1)
+            in_use_response = omada_api.get_individual_vouchers_from_group(site_id, group_id, status_filter=1)
+            if in_use_response and in_use_response.get('errorCode') == 0:
+                in_use_vouchers = in_use_response.get('result', {}).get('data', [])
+                for voucher in in_use_vouchers:
+                    sold_vouchers.append({
+                        'id': voucher.get('id'),
+                        'code': voucher.get('code'),
+                        'status': 1,  # In use
+                        'status_text': 'Em Uso',
+                        'status_class': 'warning',
+                        'group_id': group_id,
+                        'group_name': group_name,
+                        'unit_price': unit_price,
+                        'plan_name': _extract_plan_name_from_group(group_name),
+                        'created_at': datetime.fromtimestamp(created_time / 1000) if created_time else datetime.now()
+                    })
+            
+            # Then get expired vouchers (status 2)
+            expired_response = omada_api.get_individual_vouchers_from_group(site_id, group_id, status_filter=2)
+            if expired_response and expired_response.get('errorCode') == 0:
+                expired_vouchers = expired_response.get('result', {}).get('data', [])
+                for voucher in expired_vouchers:
+                    sold_vouchers.append({
+                        'id': voucher.get('id'),
+                        'code': voucher.get('code'),
+                        'status': 2,  # Expired
+                        'status_text': 'Expirado',
+                        'status_class': 'danger',
+                        'group_id': group_id,
+                        'group_name': group_name,
+                        'unit_price': unit_price,
+                        'plan_name': _extract_plan_name_from_group(group_name),
+                        'created_at': datetime.fromtimestamp(created_time / 1000) if created_time else datetime.now()
+                    })
+        
+        logging.info(f"Found {len(sold_vouchers)} sold vouchers for site {site_id}")
+        return sold_vouchers
+        
+    except Exception as e:
+        logging.error(f"Error getting sold vouchers from Omada Controller: {str(e)}")
+        return []
+
+def _extract_plan_name_from_group(group_name: str) -> str:
+    """Extract plan name from group name (removes ID prefix and timestamp)"""
+    # Group name format: XXX-plan-name_YYYYMMDD_HHMMSS
+    try:
+        # Remove timestamp part
+        if '_' in group_name:
+            parts = group_name.split('_')
+            name_part = parts[0]  # Everything before first underscore
+        else:
+            name_part = group_name
+        
+        # Remove ID prefix (XXX-)
+        if '-' in name_part and name_part[:3].isdigit():
+            return name_part[4:]  # Remove "XXX-" prefix
+        
+        return name_part
+    except:
+        return group_name
 
 def generate_sales_report_data(site_id: int, start_date=None, end_date=None) -> Dict:
     """Generate sales report data for a specific site based on actual voucher usage"""

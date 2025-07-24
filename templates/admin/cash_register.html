@@ -31,25 +31,19 @@
                 </div>
                 <div class="card-body pt-2">
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <div class="text-center p-3 bg-light rounded">
-                                <div class="h4 fw-bold text-dark mb-1">{{ total_generated }}</div>
-                                <div class="small text-muted">Vouchers Gerados</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="text-center p-3 bg-success bg-opacity-10 rounded">
-                                <div class="h4 fw-bold text-success mb-1">{{ total_sold }}</div>
+                                <div class="h4 fw-bold text-success mb-1">{{ total_vouchers }}</div>
                                 <div class="small text-muted">Vouchers Vendidos</div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
-                                <div class="h4 fw-bold text-danger mb-1">{{ total_expired }}</div>
-                                <div class="small text-muted">Vouchers Expirados</div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 bg-warning bg-opacity-10 rounded">
+                                <div class="h4 fw-bold text-warning mb-1">{{ vouchers_for_cash_register|selectattr('status', 'equalto', 1)|list|length }}</div>
+                                <div class="small text-muted">Em Uso</div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="text-center p-3 bg-primary bg-opacity-10 rounded">
                                 <div class="h4 fw-bold text-primary mb-1">R$ {{ "%.2f"|format(total_revenue)|replace('.', ',') }}</div>
                                 <div class="small text-muted">Receita Total</div>
@@ -59,46 +53,70 @@
                 </div>
             </div>
 
-            <!-- Voucher Groups Details -->
-            {% if voucher_groups %}
+            <!-- Individual Vouchers Details -->
+            {% if vouchers_for_cash_register %}
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Detalhes dos Vouchers</h5>
+                        <h5 class="card-title mb-0">Vouchers Vendidos para Fechamento</h5>
+                        <small class="text-muted">{{ vouchers_for_cash_register|length }} vouchers individuais</small>
                     </div>
                     <div class="card-body">
+                        <!-- Plan breakdown -->
+                        {% if plan_breakdown %}
+                            <div class="mb-4">
+                                <h6 class="text-dark mb-3">Resumo por Plano</h6>
+                                <div class="row g-2">
+                                    {% for plan_name, data in plan_breakdown.items() %}
+                                        <div class="col-md-4">
+                                            <div class="card card-body p-3">
+                                                <div class="fw-bold">{{ plan_name }}</div>
+                                                <div class="small text-muted">
+                                                    {{ data.quantity }} vouchers • R$ {{ "%.2f"|format(data.revenue)|replace('.', ',') }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Individual vouchers table -->
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
-                                        <th>Data</th>
+                                        <th>Código</th>
                                         <th>Plano</th>
-                                        <th>Vendedor</th>
-                                        <th>Gerados</th>
-                                        <th>Vendidos</th>
-                                        <th>Expirados</th>
-                                        <th>Receita</th>
+                                        <th>Grupo</th>
+                                        <th>Status</th>
+                                        <th>Valor</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for vg in voucher_groups %}
-                                        {% set sold_count = (vg.used_count or 0) + (vg.expired_count or 0) + (vg.in_use_count or 0) %}
-                                        {% set revenue = sold_count * vg.plan.price %}
+                                    {% for voucher in vouchers_for_cash_register %}
                                         <tr>
-                                            <td>{{ vg.created_at.strftime('%d/%m %H:%M') }}</td>
+                                            <td><code class="small">{{ voucher.code }}</code></td>
+                                            <td>{{ voucher.plan_name }}</td>
                                             <td>
-                                                <strong>{{ vg.plan.name }}</strong><br>
-                                                <small class="text-muted">R$ {{ "%.2f"|format(vg.plan.price)|replace('.', ',') }}</small>
+                                                <small class="text-muted">{{ voucher.group_name[:30] }}{% if voucher.group_name|length > 30 %}...{% endif %}</small>
                                             </td>
-                                            <td>{{ vg.created_by.username }}</td>
-                                            <td><span class="badge bg-info">{{ vg.quantity }}</span></td>
-                                            <td><span class="badge bg-success">{{ sold_count }}</span></td>
-                                            <td><span class="badge bg-danger">{{ vg.expired_count or 0 }}</span></td>
-                                            <td><strong>R$ {{ "%.2f"|format(revenue)|replace('.', ',') }}</strong></td>
+                                            <td>
+                                                <span class="badge bg-{{ voucher.status_class }}">{{ voucher.status_text }}</span>
+                                            </td>
+                                            <td><strong>R$ {{ "%.2f"|format(voucher.unit_price)|replace('.', ',') }}</strong></td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-ticket-alt fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhum voucher vendido para fechamento</h5>
+                        <p class="text-muted">Não há vouchers com status "Em Uso" ou "Expirado" para incluir no fechamento do caixa.</p>
                     </div>
                 </div>
             {% endif %}

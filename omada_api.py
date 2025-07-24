@@ -467,6 +467,159 @@ class OmadaAPI:
             logging.error(f"Error deleting voucher: {str(e)}")
             return None
     
+    def get_voucher_group_list(self, site_id: str, page: int = 1, page_size: int = 100, **filters) -> Optional[Dict]:
+        """Get voucher group list from Omada Controller"""
+        endpoint = f"sites/{site_id}/hotspot/voucher-groups"
+        
+        params = {
+            'page': page,
+            'pageSize': page_size
+        }
+        
+        # Add optional filters
+        if filters.get('time_start'):
+            params['filters.timeStart'] = filters['time_start']
+        if filters.get('time_end'):
+            params['filters.timeEnd'] = filters['time_end']
+        if filters.get('search_key'):
+            params['searchKey'] = filters['search_key']
+        
+        logging.info(f"Getting voucher group list for site {site_id} with params: {params}")
+        
+        if not self._ensure_valid_token():
+            logging.error("Failed to obtain valid token for voucher group list")
+            return None
+        
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/{endpoint}"
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        
+        try:
+            logging.debug(f"Making GET request to: {url}")
+            response = self.session.get(url, headers=headers, params=params)
+            
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response text: {response.text}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            logging.info(f"Got voucher group list response with {len(result.get('result', {}).get('data', []))} groups")
+            
+            if result.get('errorCode') != 0:
+                error_code = result.get('errorCode')
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Omada API returned error {error_code}: {error_msg}")
+            
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error getting voucher group list: {str(e)}")
+            return None
+
+    def get_individual_vouchers_from_group(self, site_id: str, group_id: str, page: int = 1, page_size: int = 1000, status_filter: Optional[int] = None) -> Optional[Dict]:
+        """Get individual vouchers from a voucher group"""
+        endpoint = f"sites/{site_id}/hotspot/voucher-groups/{group_id}"
+        
+        params = {
+            'page': page,
+            'pageSize': page_size
+        }
+        
+        # Add status filter if provided (0: unused, 1: in-use, 2: expired)
+        if status_filter is not None:
+            params['filters.status'] = status_filter
+        
+        logging.info(f"Getting individual vouchers from group {group_id} for site {site_id}")
+        
+        if not self._ensure_valid_token():
+            logging.error("Failed to obtain valid token for voucher group detail")
+            return None
+        
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/{endpoint}"
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+        
+        try:
+            logging.debug(f"Making GET request to: {url}")
+            response = self.session.get(url, headers=headers, params=params)
+            
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response text: {response.text}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            logging.info(f"Got voucher group detail with {len(result.get('result', {}).get('data', []))} vouchers")
+            
+            if result.get('errorCode') != 0:
+                error_code = result.get('errorCode')
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Omada API returned error {error_code}: {error_msg}")
+            
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error getting voucher group detail: {str(e)}")
+            return None
+
+    def delete_vouchers_batch(self, site_id: str, group_id: str, voucher_ids: List[str] = None, delete_type: int = 0, status_filter: int = None) -> Optional[Dict]:
+        """Delete selected vouchers from a group using batch delete API"""
+        endpoint = f"sites/{site_id}/hotspot/vouchers/batch/delete"
+        
+        # Prepare request payload
+        payload = {
+            "type": delete_type,  # 0: all vouchers in group, 1: specific IDs, 2: exclude specific IDs
+            "groupId": group_id,
+        }
+        
+        if voucher_ids and delete_type in [1, 2]:
+            payload["ids"] = voucher_ids
+        
+        if status_filter is not None:
+            payload["status"] = status_filter
+        
+        logging.info(f"Batch deleting vouchers from group {group_id} for site {site_id} with type {delete_type}")
+        
+        if not self._ensure_valid_token():
+            logging.error("Failed to obtain valid token for batch voucher deletion")
+            return None
+        
+        url = f"{self.base_url}/openapi/v1/{self.omadac_id}/{endpoint}"
+        headers = {
+            'Authorization': f'AccessToken={self.access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        try:
+            logging.debug(f"Making POST request to: {url}")
+            logging.debug(f"Request payload: {payload}")
+            
+            response = self.session.post(url, headers=headers, json=payload)
+            
+            logging.debug(f"Response status code: {response.status_code}")
+            logging.debug(f"Response text: {response.text}")
+            
+            response.raise_for_status()
+            
+            result = response.json()
+            logging.info(f"Batch delete vouchers response: {result}")
+            
+            if result.get('errorCode') != 0:
+                error_code = result.get('errorCode')
+                error_msg = result.get('msg', 'Unknown error')
+                logging.error(f"Omada API returned error {error_code}: {error_msg}")
+            
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error batch deleting vouchers: {str(e)}")
+            return None
+
     def delete_voucher_groups(self, site_id: str, group_ids: List[str], delete_type: int = 1) -> Optional[Dict]:
         """Delete selected voucher groups
         

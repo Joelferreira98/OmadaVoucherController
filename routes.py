@@ -1013,72 +1013,32 @@ def admin_sales_reports():
     if end_date:
         end_date = datetime.strptime(end_date, '%Y-%m-%d')
     
-    # Get voucher groups first
-    query = VoucherGroup.query.filter_by(site_id=current_site_id)
-    
-    if start_date:
-        query = query.filter(VoucherGroup.created_at >= start_date)
-    if end_date:
-        query = query.filter(VoucherGroup.created_at <= end_date)
-    
-    voucher_groups = query.order_by(VoucherGroup.created_at.desc()).all()
-    
-    # Get individual voucher data from Omada Controller
-    sold_vouchers = []  # Vouchers that are expired or in-use
-    from omada_api import omada_api
+    # Get individual sold vouchers directly from Omada Controller
+    from utils import get_sold_vouchers_from_omada
     
     try:
-        for vg in voucher_groups:
-            if vg.omada_group_id:
-                # Get detailed voucher data from Omada Controller
-                group_details = omada_api.get_voucher_group_detail(current_site.site_id, vg.omada_group_id)
-                
-                if group_details and group_details.get('errorCode') == 0:
-                    voucher_data_list = group_details.get('result', {}).get('data', [])
-                    
-                    for voucher in voucher_data_list:
-                        # Only include vouchers that are expired or in-use (sold)
-                        status = voucher.get('status', 0)
-                        if status in [2, 3]:  # 2 = in-use, 3 = expired
-                            sold_vouchers.append({
-                                'code': voucher.get('code', 'N/A'),
-                                'status': 'Em Uso' if status == 2 else 'Expirado',
-                                'status_class': 'warning' if status == 2 else 'danger',
-                                'plan_name': vg.plan.name,
-                                'plan_price': vg.plan.price,
-                                'created_by': vg.created_by.username,
-                                'created_at': vg.created_at,
-                                'group_id': vg.id,
-                                'usage_time': voucher.get('usageTime', 0) if status == 2 else voucher.get('duration', 0),
-                                'start_time': voucher.get('startTime'),
-                                'end_time': voucher.get('endTime')
-                            })
-    
+        # Convert dates to proper format for Omada API
+        start_date_filter = start_date.date() if start_date else None
+        end_date_filter = end_date.date() if end_date else None
+        
+        # Get all sold vouchers from Omada Controller
+        sold_vouchers = get_sold_vouchers_from_omada(current_site.site_id, start_date_filter, end_date_filter)
+        
+        logging.info(f"Admin sales report: Found {len(sold_vouchers)} sold vouchers")
+        
     except Exception as e:
-        logging.error(f"Error fetching individual voucher data: {str(e)}")
+        logging.error(f"Error fetching sold vouchers from Omada Controller: {str(e)}")
         flash('Erro ao carregar dados dos vouchers do Omada Controller.', 'warning')
+        sold_vouchers = []
     
     # Calculate totals based on sold vouchers
     total_sold_vouchers = len(sold_vouchers)
-    total_revenue = sum(voucher['plan_price'] for voucher in sold_vouchers)
-    
-    # Group by vendor
-    vendor_stats = {}
-    for voucher in sold_vouchers:
-        vendor_name = voucher['created_by']
-        if vendor_name not in vendor_stats:
-            vendor_stats[vendor_name] = {
-                'vendor_name': vendor_name,
-                'vouchers': 0,
-                'revenue': 0.0
-            }
-        vendor_stats[vendor_name]['vouchers'] += 1
-        vendor_stats[vendor_name]['revenue'] += voucher['plan_price']
+    total_revenue = sum(voucher.get('unit_price', 0) for voucher in sold_vouchers)
     
     # Group by plan
     plan_stats = {}
     for voucher in sold_vouchers:
-        plan_name = voucher['plan_name']
+        plan_name = voucher.get('plan_name', 'Desconhecido')
         if plan_name not in plan_stats:
             plan_stats[plan_name] = {
                 'plan_name': plan_name,
@@ -1086,7 +1046,7 @@ def admin_sales_reports():
                 'revenue': 0.0
             }
         plan_stats[plan_name]['vouchers'] += 1
-        plan_stats[plan_name]['revenue'] += voucher['plan_price']
+        plan_stats[plan_name]['revenue'] += voucher.get('unit_price', 0)
     
     return render_template('admin/sales_reports.html',
                          current_site=current_site,
@@ -1167,8 +1127,9 @@ def admin_generate_vouchers():
                 duration_minutes = plan.duration * 24 * 60
             
             # Prepare voucher data for Omada API following exact vendor specification
+            # Include plan ID in name as requested: XXX-plan-name-etc
             voucher_data = {
-                "name": f"{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "name": f"{plan.id:03d}-{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 "amount": form.quantity.data,
                 "codeLength": plan.code_length,
                 "codeForm": [0],  # Always use numbers only
@@ -1303,43 +1264,64 @@ def cash_register():
     period_start = last_closing.period_end if last_closing else datetime(2020, 1, 1)
     period_end = datetime.now()
     
-    # Get voucher groups that are not yet included in any closed cash register
-    # This includes: new vouchers created after last closing + old vouchers with new sales
-    if last_closing:
-        # Get voucher group IDs that were included in previous cash register closings
-        closed_voucher_group_ids = set()
-        all_closings = CashRegister.query.filter_by(site_id=current_site_id).all()
-        for closing in all_closings:
-            if closing.voucher_groups_data:
-                closed_voucher_group_ids.update([vg['id'] for vg in closing.voucher_groups_data])
+    # Get individual sold vouchers from Omada Controller (status 1: in-use, 2: expired)
+    from utils import get_sold_vouchers_from_omada
+    try:
+        # Convert date to proper format for Omada API
+        start_date = period_start.date() if period_start else None
+        end_date = period_end.date()
         
-        # Get all voucher groups for the site
-        all_voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
+        # Get all sold vouchers from Omada Controller
+        sold_vouchers = get_sold_vouchers_from_omada(current_site.site_id, start_date, end_date)
         
-        # Include voucher groups that:
-        # 1. Were not in previous closings, OR
-        # 2. Have activity (sales) after the last closing
-        voucher_groups = []
-        for vg in all_voucher_groups:
-            # If not in any previous closing, include it
-            if vg.id not in closed_voucher_group_ids:
-                voucher_groups.append(vg)
-            # If it was in a previous closing but has new sales activity, include it
-            elif vg.last_sync and vg.last_sync > period_start:
-                voucher_groups.append(vg)
-    else:
-        # No previous closings, get all voucher groups
-        voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
+        # Filter out vouchers that were already included in previous cash register closings
+        vouchers_for_cash_register = []
+        if last_closing and last_closing.voucher_data:
+            # Get list of voucher IDs that were already included in previous closings
+            already_included_ids = set()
+            all_closings = CashRegister.query.filter_by(site_id=current_site_id).all()
+            for closing in all_closings:
+                if closing.voucher_data:
+                    already_included_ids.update([v.get('id') for v in closing.voucher_data if v.get('id')])
+            
+            # Only include vouchers not in previous closings
+            vouchers_for_cash_register = [v for v in sold_vouchers if v.get('id') not in already_included_ids]
+        else:
+            # No previous closings, include all sold vouchers
+            vouchers_for_cash_register = sold_vouchers
+            
+    except Exception as e:
+        logging.error(f"Error getting sold vouchers from Omada Controller: {str(e)}")
+        flash('Erro ao buscar vouchers vendidos do Omada Controller. Usando dados locais.', 'warning')
+        vouchers_for_cash_register = []
     
-    # Calculate statistics - vouchers sold include: used, in_use, and expired
-    total_generated = sum(vg.quantity for vg in voucher_groups)
-    total_sold = sum((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
-    total_expired = sum(vg.expired_count or 0 for vg in voucher_groups)
-    total_unused = sum(vg.unused_count or 0 for vg in voucher_groups)
-    total_revenue = sum(((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+    # Calculate revenue from individual sold vouchers
+    total_revenue = sum(v.get('unit_price', 0) for v in vouchers_for_cash_register)
+    total_vouchers = len(vouchers_for_cash_register)
     
-    # Get groups with expired vouchers
-    groups_with_expired = [vg for vg in voucher_groups if (vg.expired_count or 0) > 0]
+    # Plan breakdown
+    plan_breakdown = {}
+    for voucher in vouchers_for_cash_register:
+        plan_name = voucher.get('plan_name', 'Desconhecido')
+        if plan_name not in plan_breakdown:
+            plan_breakdown[plan_name] = {'quantity': 0, 'revenue': 0}
+        plan_breakdown[plan_name]['quantity'] += 1
+        plan_breakdown[plan_name]['revenue'] += voucher.get('unit_price', 0)
+    
+    # Group by voucher group for display
+    group_breakdown = {}
+    for voucher in vouchers_for_cash_register:
+        group_id = voucher.get('group_id')
+        if group_id not in group_breakdown:
+            group_breakdown[group_id] = {
+                'group_name': voucher.get('group_name', 'Desconhecido'),
+                'quantity': 0,
+                'revenue': 0,
+                'vouchers': []
+            }
+        group_breakdown[group_id]['quantity'] += 1
+        group_breakdown[group_id]['revenue'] += voucher.get('unit_price', 0)
+        group_breakdown[group_id]['vouchers'].append(voucher)
     
     form = CashRegisterForm()
     
@@ -1347,12 +1329,10 @@ def cash_register():
                          current_site=current_site,
                          period_start=period_start,
                          period_end=period_end,
-                         voucher_groups=voucher_groups,
-                         groups_with_expired=groups_with_expired,
-                         total_generated=total_generated,
-                         total_sold=total_sold,
-                         total_expired=total_expired,
-                         total_unused=total_unused,
+                         vouchers_for_cash_register=vouchers_for_cash_register,
+                         plan_breakdown=plan_breakdown,
+                         group_breakdown=group_breakdown,
+                         total_vouchers=total_vouchers,
                          total_revenue=total_revenue,
                          last_closing=last_closing,
                          form=form)
@@ -1388,87 +1368,103 @@ def close_cash_register():
         period_start = last_closing.period_end if last_closing else datetime(2020, 1, 1)
         period_end = datetime.now()
         
-        # Get voucher groups that are not yet included in any closed cash register
-        if last_closing:
-            # Get voucher group IDs that were included in previous cash register closings
-            closed_voucher_group_ids = set()
-            all_closings = CashRegister.query.filter_by(site_id=current_site_id).all()
-            for closing in all_closings:
-                if closing.voucher_groups_data:
-                    closed_voucher_group_ids.update([vg['id'] for vg in closing.voucher_groups_data])
+        # Get individual sold vouchers from Omada Controller (same logic as display)
+        from utils import get_sold_vouchers_from_omada
+        try:
+            # Convert date to proper format for Omada API
+            start_date = period_start.date() if period_start else None
+            end_date = period_end.date()
             
-            # Get all voucher groups for the site
-            all_voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
+            # Get all sold vouchers from Omada Controller
+            sold_vouchers = get_sold_vouchers_from_omada(site.site_id, start_date, end_date)
             
-            # Include voucher groups that:
-            # 1. Were not in previous closings, OR  
-            # 2. Have activity (sales) after the last closing
-            voucher_groups = []
-            for vg in all_voucher_groups:
-                # If not in any previous closing, include it
-                if vg.id not in closed_voucher_group_ids:
-                    voucher_groups.append(vg)
-                # If it was in a previous closing but has new sales activity, include it
-                elif vg.last_sync and vg.last_sync > period_start:
-                    voucher_groups.append(vg)
-        else:
-            # No previous closings, get all voucher groups
-            voucher_groups = VoucherGroup.query.filter_by(site_id=current_site_id).all()
+            # Filter out vouchers that were already included in previous cash register closings
+            vouchers_to_close = []
+            if last_closing and last_closing.voucher_data:
+                # Get list of voucher IDs that were already included in previous closings
+                already_included_ids = set()
+                all_closings = CashRegister.query.filter_by(site_id=current_site_id).all()
+                for closing in all_closings:
+                    if closing.voucher_data:
+                        already_included_ids.update([v.get('id') for v in closing.voucher_data if v.get('id')])
+                
+                # Only include vouchers not in previous closings
+                vouchers_to_close = [v for v in sold_vouchers if v.get('id') not in already_included_ids]
+            else:
+                # No previous closings, include all sold vouchers
+                vouchers_to_close = sold_vouchers
+                
+        except Exception as e:
+            logging.error(f"Error getting sold vouchers for cash register closure: {str(e)}")
+            flash('Erro ao buscar vouchers vendidos do Omada Controller. Operação cancelada.', 'error')
+            return redirect(url_for('cash_register'))
         
-        # Calculate statistics - vouchers sold include: used, in_use, and expired  
-        total_generated = sum(vg.quantity for vg in voucher_groups)
-        total_sold = sum((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
-        total_expired = sum(vg.expired_count or 0 for vg in voucher_groups)
-        total_unused = sum(vg.unused_count or 0 for vg in voucher_groups)
-        total_revenue = sum(((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+        # Calculate statistics from individual vouchers
+        total_vouchers = len(vouchers_to_close)
+        total_revenue = sum(v.get('unit_price', 0) for v in vouchers_to_close)
         
-        # Remove expired vouchers if requested
-        expired_removed = False
-        if form.remove_expired.data:
-            from omada_api import omada_api
-            groups_with_expired = [vg for vg in voucher_groups if (vg.expired_count or 0) > 0]
+        # Delete sold vouchers from Omada Controller if requested
+        vouchers_deleted = False
+        vouchers_deleted_count = 0
+        if form.remove_expired.data and vouchers_to_close:
+            from omada_api import OmadaAPI
+            omada_api = OmadaAPI()
             
-            for vg in groups_with_expired:
-                if vg.omada_group_id:
-                    result = omada_api.delete_expired_vouchers(site.site_id, vg.omada_group_id)
+            # Group vouchers by group_id for batch deletion
+            vouchers_by_group = {}
+            for voucher in vouchers_to_close:
+                group_id = voucher.get('group_id')
+                if group_id:
+                    if group_id not in vouchers_by_group:
+                        vouchers_by_group[group_id] = []
+                    vouchers_by_group[group_id].append(voucher.get('id'))
+            
+            # Delete vouchers group by group using batch API
+            for group_id, voucher_ids in vouchers_by_group.items():
+                try:
+                    # Delete sold vouchers (status filter for expired and in-use)
+                    result = omada_api.delete_vouchers_batch(
+                        site.site_id, 
+                        group_id, 
+                        voucher_ids=voucher_ids, 
+                        delete_type=1  # Delete specific IDs
+                    )
+                    
                     if result and result.get('errorCode') == 0:
-                        logging.info(f"Deleted expired vouchers for group {vg.omada_group_id}")
-                        expired_removed = True
+                        vouchers_deleted_count += len(voucher_ids)
+                        vouchers_deleted = True
+                        logging.info(f"Deleted {len(voucher_ids)} sold vouchers from group {group_id}")
                     else:
-                        logging.warning(f"Failed to delete expired vouchers for group {vg.omada_group_id}")
+                        logging.warning(f"Failed to delete vouchers from group {group_id}: {result}")
+                        
+                except Exception as e:
+                    logging.error(f"Error deleting vouchers from group {group_id}: {str(e)}")
         
-        # Create cash register record
+        # Create cash register record with individual voucher data
         cash_register = CashRegister(
             site_id=current_site_id,
             closed_by_id=current_user.id,
             period_start=period_start,
             period_end=period_end,
-            vouchers_generated=total_generated,
-            vouchers_sold=total_sold,
-            vouchers_expired=total_expired,
-            vouchers_unused=total_unused,
+            vouchers_generated=0,  # Not applicable for individual voucher tracking
+            vouchers_sold=total_vouchers,
+            vouchers_expired=len([v for v in vouchers_to_close if v.get('status') == 2]),
+            vouchers_unused=0,  # Not applicable since we only track sold vouchers
             total_revenue=total_revenue,
-            expired_vouchers_removed=expired_removed,
-            voucher_groups_data=[{
-                'id': vg.id,
-                'plan_name': vg.plan.name,
-                'quantity': vg.quantity,
-                'unused_count': vg.unused_count or 0,
-                'used_count': vg.used_count or 0,
-                'in_use_count': vg.in_use_count or 0,
-                'expired_count': vg.expired_count or 0,
-                'total_value': ((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price,
-                'created_at': vg.created_at.isoformat(),
-                'created_by': vg.created_by.username
-            } for vg in voucher_groups],
+            expired_vouchers_removed=vouchers_deleted,
+            voucher_data=vouchers_to_close,  # Store individual voucher data instead of group data
             notes=form.notes.data
         )
         
         db.session.add(cash_register)
         db.session.commit()
         
-        flash(f'Caixa fechado com sucesso! Receita: R$ {total_revenue:.2f}'.replace('.', ','), 'success')
-        logging.info(f"Cash register closed by {current_user.username} for site {site.name} - Revenue: R$ {total_revenue:.2f}")
+        success_message = f'Caixa fechado com sucesso! {total_vouchers} vouchers vendidos, receita: R$ {total_revenue:.2f}'.replace('.', ',')
+        if vouchers_deleted:
+            success_message += f' - {vouchers_deleted_count} vouchers removidos do Omada Controller.'
+        
+        flash(success_message, 'success')
+        logging.info(f"Cash register closed by {current_user.username} for site {site.name} - {total_vouchers} vouchers, Revenue: R$ {total_revenue:.2f}, Deleted: {vouchers_deleted_count}")
         
         return redirect(url_for('cash_register_history'))
         
@@ -1634,8 +1630,9 @@ def generate_vouchers():
                 duration_in_minutes = plan.duration * 24 * 60
             
             # Prepare voucher data for Omada API following exact specification
+            # Include plan ID in name as requested: XXX-plan-name-etc
             voucher_data = {
-                "name": f"{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "name": f"{plan.id:03d}-{plan.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 "amount": form.quantity.data,
                 "codeLength": code_length,
                 "codeForm": code_form,
@@ -1974,58 +1971,26 @@ def vendor_sales_reports():
         start_dt = datetime.strptime(start_date, '%Y-%m-%d')
         end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
         
-        # Get all voucher groups for the site in date range (not just created by current user)
-        voucher_groups = VoucherGroup.query.filter(
-            VoucherGroup.site_id == vendor_site.site_id,
-            VoucherGroup.created_at >= start_dt,
-            VoucherGroup.created_at <= end_dt
-        ).all()
+        # Get individual sold vouchers directly from Omada Controller
+        from utils import get_sold_vouchers_from_omada
         
-        # Calculate totals based on database voucher status (simpler and more reliable)
-        total_vouchers_generated = sum(vg.quantity for vg in voucher_groups)
-        total_vouchers_sold = sum((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0) for vg in voucher_groups)
-        total_revenue = sum(((vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)) * vg.plan.price for vg in voucher_groups)
+        try:
+            # Get all sold vouchers from Omada Controller for the site
+            sold_vouchers = get_sold_vouchers_from_omada(vendor_site.site.site_id, start_dt.date(), end_dt.date())
+            logging.info(f"Vendor sales report: Found {len(sold_vouchers)} sold vouchers")
+            
+        except Exception as e:
+            logging.error(f"Error fetching sold vouchers from Omada Controller: {str(e)}")
+            sold_vouchers = []
         
-        # Create sold vouchers list based on database status
-        sold_vouchers = []
-        for vg in voucher_groups:
-            sold_count = (vg.used_count or 0) + (vg.in_use_count or 0) + (vg.expired_count or 0)
-            # Add individual voucher entries based on counts
-            for i in range(vg.used_count or 0):
-                sold_vouchers.append({
-                    'code': f'USADO-{vg.id}-{i+1:03d}',
-                    'status': 'Usado',
-                    'status_class': 'success',
-                    'plan_name': vg.plan.name,
-                    'plan_price': vg.plan.price,
-                    'created_at': vg.created_at,
-                    'group_id': vg.id
-                })
-            for i in range(vg.in_use_count or 0):
-                sold_vouchers.append({
-                    'code': f'EM-USO-{vg.id}-{i+1:03d}',
-                    'status': 'Em Uso',
-                    'status_class': 'warning',
-                    'plan_name': vg.plan.name,
-                    'plan_price': vg.plan.price,
-                    'created_at': vg.created_at,
-                    'group_id': vg.id
-                })
-            for i in range(vg.expired_count or 0):
-                sold_vouchers.append({
-                    'code': f'EXPIRADO-{vg.id}-{i+1:03d}',
-                    'status': 'Expirado',
-                    'status_class': 'danger',
-                    'plan_name': vg.plan.name,
-                    'plan_price': vg.plan.price,
-                    'created_at': vg.created_at,
-                    'group_id': vg.id
-                })
+        # Calculate totals based on sold vouchers
+        total_vouchers_sold = len(sold_vouchers)
+        total_revenue = sum(voucher.get('unit_price', 0) for voucher in sold_vouchers)
         
         # Group by plan
         plan_stats = {}
         for voucher in sold_vouchers:
-            plan_name = voucher['plan_name']
+            plan_name = voucher.get('plan_name', 'Desconhecido')
             if plan_name not in plan_stats:
                 plan_stats[plan_name] = {
                     'plan_name': plan_name,
@@ -2033,19 +1998,31 @@ def vendor_sales_reports():
                     'revenue': 0.0
                 }
             plan_stats[plan_name]['vouchers'] += 1
-            plan_stats[plan_name]['revenue'] += voucher['plan_price']
+            plan_stats[plan_name]['revenue'] += voucher.get('unit_price', 0)
         
-        # Group by date
+        # Group by date (using voucher usage date if available, otherwise group creation date)
         date_stats = {}
         for voucher in sold_vouchers:
-            date_key = voucher['created_at'].strftime('%Y-%m-%d')
+            # Use voucher usage date or fallback to creation date
+            voucher_date = voucher.get('used_date', voucher.get('created_date'))
+            if voucher_date:
+                try:
+                    if isinstance(voucher_date, str):
+                        date_key = datetime.strptime(voucher_date[:10], '%Y-%m-%d').strftime('%Y-%m-%d')
+                    else:
+                        date_key = voucher_date.strftime('%Y-%m-%d')
+                except:
+                    date_key = 'Data desconhecida'
+            else:
+                date_key = 'Data desconhecida'
+                
             if date_key not in date_stats:
                 date_stats[date_key] = {
                     'vouchers': 0,
                     'revenue': 0.0
                 }
             date_stats[date_key]['vouchers'] += 1
-            date_stats[date_key]['revenue'] += voucher['plan_price']
+            date_stats[date_key]['revenue'] += voucher.get('unit_price', 0)
         
         # Debug logging
         logging.info(f"Sales report for {current_user.username}: {total_vouchers_sold} sold, R$ {total_revenue:.2f}")
@@ -2054,7 +2031,6 @@ def vendor_sales_reports():
         return render_template('vendor/sales_reports.html',
                              site=vendor_site.site,
                              sold_vouchers=sold_vouchers,
-                             total_vouchers_generated=total_vouchers_generated,
                              total_vouchers_sold=total_vouchers_sold,
                              total_revenue=total_revenue,
                              plan_stats=plan_stats,

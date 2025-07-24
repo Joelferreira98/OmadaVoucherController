@@ -10,6 +10,32 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (July 2025)
 
+### Individual Voucher Tracking System Implementation (July 24, 2025)
+- **Major Enhancement**: Implemented complete individual voucher tracking system replacing group-based management
+- **Cash Register System Overhaul**:
+  - Cash register now displays individual vouchers with real codes, status, and values
+  - Proper deletion of sold vouchers from Omada Controller upon cash register closure
+  - Enhanced voucher filtering to prevent double-counting between cash register periods
+  - Added voucher_data field to CashRegister model for individual voucher snapshots
+- **Sales Reports Transformation**:
+  - Both admin and vendor sales reports now show individual voucher data
+  - Real-time integration with Omada Controller for accurate sold voucher tracking
+  - Only vouchers with status 1 (in-use) and 2 (expired) are classified as "sold"
+  - Removed dependency on database voucher counts for more accurate reporting
+- **API Integration Enhancement**:
+  - Created delete_vouchers_batch() function for batch voucher deletion
+  - Enhanced get_sold_vouchers_from_omada() function for consistent data retrieval
+  - Added proper error handling and logging for all Omada API operations
+- **Template and UI Updates**:
+  - Updated cash_register.html to display individual vouchers in clean table format
+  - Enhanced plan breakdown and status visualization
+  - Improved user feedback with detailed success/error messages
+- **Benefits Achieved**:
+  - Accurate revenue tracking based on actual voucher usage
+  - Individual voucher code visibility for customer support
+  - Elimination of discrepancies between database counts and actual usage
+  - Real-time status monitoring and proper audit trail
+
 ### Cash Register Voucher Tracking Bug Fix (July 23, 2025)
 - **Critical Problem**: After cash register closure, new vouchers were not appearing in the next cash register period
 - **Root Cause**: System was filtering vouchers by creation date after last closing, missing vouchers created before but sold after closing
