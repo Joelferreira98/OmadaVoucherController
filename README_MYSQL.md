@@ -242,7 +242,28 @@ SET GLOBAL slow_query_log = 'ON';
 
 ### Problemas Comuns
 
-#### 1. Erro de Conexão MySQL
+#### 1. Erro "Unknown column 'refresh_token'"
+Se você receber este erro durante a sincronização:
+```
+(pymysql.err.OperationalError) (1054, "Unknown column 'omada_config.refresh_token' in 'field list'")
+```
+
+**Solução Automática:**
+```bash
+# Executar script de correção
+chmod +x fix_mysql_columns.sh
+./fix_mysql_columns.sh
+```
+
+**Solução Manual:**
+```bash
+# Executar SQL diretamente
+mysql -u voucher_user -p voucher_system < fix_mysql_schema.sql
+```
+
+**O que acontece:** O banco MySQL não tem as colunas `refresh_token` e `is_active` na tabela `omada_config`. Os scripts corrigem isso automaticamente.
+
+#### 2. Erro de Conexão MySQL
 ```bash
 # Verificar se MySQL está rodando
 systemctl status mysql

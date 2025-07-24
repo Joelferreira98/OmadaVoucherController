@@ -138,7 +138,9 @@ CREATE TABLE IF NOT EXISTS omada_config (
     client_secret VARCHAR(255) NOT NULL,
     omadac_id VARCHAR(255) NOT NULL,
     access_token TEXT,
+    refresh_token TEXT,
     token_expires_at TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

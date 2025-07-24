@@ -109,6 +109,45 @@ class DatabaseMigrator:
         except Exception as e:
             self.log(f"Failed to export {table_name}: {e}", "ERROR")
             return []
+    
+    def fix_mysql_schema(self):
+        """Fix MySQL schema to ensure all required columns exist"""
+        try:
+            cursor = self.mysql_conn.cursor()
+            
+            # Check and add refresh_token column
+            cursor.execute("""
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE table_name = 'omada_config' 
+                AND column_name = 'refresh_token' 
+                AND table_schema = DATABASE()
+            """)
+            
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("ALTER TABLE omada_config ADD COLUMN refresh_token TEXT AFTER access_token")
+                self.log("Added refresh_token column to omada_config")
+            
+            # Check and add is_active column
+            cursor.execute("""
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE table_name = 'omada_config' 
+                AND column_name = 'is_active' 
+                AND table_schema = DATABASE()
+            """)
+            
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("ALTER TABLE omada_config ADD COLUMN is_active BOOLEAN DEFAULT TRUE AFTER token_expires_at")
+                self.log("Added is_active column to omada_config")
+            
+            # Update existing records
+            cursor.execute("UPDATE omada_config SET is_active = TRUE WHERE is_active IS NULL")
+            
+            self.mysql_conn.commit()
+            cursor.close()
+            self.log("MySQL schema fix completed")
+            
+        except Exception as e:
+            self.log(f"Warning: Could not fix MySQL schema: {e}", "WARNING")
             
     def import_table_data(self, table_name, data):
         """Import data into MySQL table"""
@@ -201,6 +240,9 @@ class DatabaseMigrator:
             self.log("Disabled MySQL foreign key checks")
         except Exception as e:
             self.log(f"Warning: Could not disable foreign key checks: {e}", "WARNING")
+        
+        # Ensure MySQL schema has required columns
+        self.fix_mysql_schema()
         
         # Migrate each table
         success = True
