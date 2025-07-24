@@ -40,7 +40,7 @@ class AutoSyncManager {
         const syncContainer = document.createElement('div');
         syncContainer.id = 'sync-status-container';
         syncContainer.className = 'position-fixed';
-        syncContainer.style.cssText = 'top: 10px; right: 80px; z-index: 1040;';
+        syncContainer.style.cssText = 'bottom: 20px; right: 80px; z-index: 1040;';
         
         syncContainer.innerHTML = `
             <div class="d-flex align-items-center gap-2">

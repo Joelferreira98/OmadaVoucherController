@@ -225,7 +225,7 @@ body.offline::before {
 /* Theme Toggle Button */
 .theme-toggle {
     position: fixed;
-    top: 20px;
+    bottom: 20px;
     right: 20px;
     z-index: 1050;
     background: var(--card-bg);
