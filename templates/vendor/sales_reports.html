@@ -49,64 +49,29 @@
         </div>
     </div>
 
-    <!-- DEBUG INFO - Remove when working -->
-    <div class="row mb-2">
-        <div class="col-12">
-            <div class="alert alert-info small">
-                <strong>DEBUG:</strong> 
-                Generated: {{ total_vouchers_generated }}, 
-                Sold: {{ total_vouchers_sold }}, 
-                Revenue: {{ total_revenue }}, 
-                Sold Vouchers: {{ sold_vouchers|length if sold_vouchers else 0 }}, 
-                Plan Stats: {{ plan_stats|length if plan_stats else 0 }}
-            </div>
-        </div>
-    </div>
-
     <!-- KPI Cards -->
     <div class="row mb-4 g-3">
-        <div class="col-lg-3 col-md-6">
+        <div class="col-md-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body text-center py-4">
                     <div class="mb-2">
-                        <i class="fas fa-plus-circle fa-2x text-secondary opacity-75"></i>
+                        <i class="fas fa-ticket-alt fa-2x text-primary opacity-75"></i>
                     </div>
-                    <h3 class="fw-bold text-dark mb-1">{{ total_vouchers_generated or 0 }}</h3>
-                    <p class="text-muted mb-0 small">Vouchers Gerados</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center py-4">
-                    <div class="mb-2">
-                        <i class="fas fa-check-circle fa-2x text-success opacity-75"></i>
-                    </div>
-                    <h3 class="fw-bold text-dark mb-1">{{ total_vouchers_sold or 0 }}</h3>
+                    <h2 class="fw-bold text-dark mb-1">{{ sold_vouchers|length if sold_vouchers else 0 }}</h2>
                     <p class="text-muted mb-0 small">Vouchers Vendidos</p>
+                    <small class="text-muted opacity-75">Em uso + Expirados</small>
                 </div>
             </div>
         </div>
-        <div class="col-lg-3 col-md-6">
+        <div class="col-md-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body text-center py-4">
                     <div class="mb-2">
-                        <i class="fas fa-dollar-sign fa-2x text-primary opacity-75"></i>
+                        <i class="fas fa-dollar-sign fa-2x text-success opacity-75"></i>
                     </div>
-                    <h3 class="fw-bold text-dark mb-1">R$ {{ "%.2f"|format(total_revenue or 0)|replace('.', ',') }}</h3>
+                    <h2 class="fw-bold text-dark mb-1">R$ {{ "%.2f"|format(total_revenue or 0)|replace('.', ',') }}</h2>
                     <p class="text-muted mb-0 small">Receita Total</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center py-4">
-                    <div class="mb-2">
-                        <i class="fas fa-percentage fa-2x text-info opacity-75"></i>
-                    </div>
-                    {% set conversion_rate = (total_vouchers_sold / total_vouchers_generated * 100) if total_vouchers_generated > 0 else 0 %}
-                    <h3 class="fw-bold text-dark mb-1">{{ conversion_rate|round(1) }}%</h3>
-                    <p class="text-muted mb-0 small">Taxa de Conversão</p>
+                    <small class="text-muted opacity-75">Baseada em vendas efetivas</small>
                 </div>
             </div>
         </div>
@@ -238,22 +203,22 @@
                                 {% for voucher in sold_vouchers %}
                                 <tr class="border-bottom border-light">
                                     <td class="ps-4 py-3">
-                                        <code class="text-dark bg-light px-2 py-1 rounded small">{{ voucher.code }}</code>
+                                        <code class="text-dark bg-light px-2 py-1 rounded small">{{ voucher.get('code', 'N/A') }}</code>
                                     </td>
                                     <td class="py-3">
-                                        <span class="fw-medium text-dark">{{ voucher.plan_name }}</span>
+                                        <span class="fw-medium text-dark">{{ voucher.get('plan_name', 'Desconhecido') }}</span>
                                     </td>
                                     <td class="py-3">
-                                        <span class="badge {% if voucher.status_class == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} rounded-pill">
-                                            {{ voucher.status }}
+                                        <span class="badge {% if voucher.get('status_class') == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} rounded-pill">
+                                            {{ voucher.get('status_text', 'Desconhecido') }}
                                         </span>
                                     </td>
                                     <td class="py-3 text-end">
-                                        <span class="fw-bold text-dark">R$ {{ "%.2f"|format(voucher.plan_price)|replace('.', ',') }}</span>
+                                        <span class="fw-bold text-dark">R$ {{ "%.2f"|format(voucher.get('unit_price', 0))|replace('.', ',') }}</span>
                                     </td>
                                     <td class="py-3 text-end pe-4">
-                                        <span class="text-muted small">{{ voucher.created_at.strftime('%d/%m/%Y') }}</span><br>
-                                        <span class="text-muted" style="font-size: 11px;">{{ voucher.created_at.strftime('%H:%M') }}</span>
+                                        <span class="text-muted small">{{ voucher.get('created_date', 'N/A') }}</span><br>
+                                        <span class="text-muted" style="font-size: 11px;">{{ voucher.get('created_time', '') }}</span>
                                     </td>
                                 </tr>
                                 {% endfor %}
