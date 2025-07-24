@@ -263,6 +263,16 @@ mysql -u voucher_user -p voucher_system < fix_mysql_schema.sql
 
 **O que acontece:** O banco MySQL não tem as colunas `refresh_token` e `is_active` na tabela `omada_config`. Os scripts corrigem isso automaticamente.
 
+#### Erro "Unknown column 'assigned_at'"
+Se você receber este erro:
+```
+(pymysql.err.OperationalError) (1054, "Unknown column 'admin_site.assigned_at' in 'field list'")
+```
+
+**Solução:** Use os mesmos scripts acima. Eles agora corrigem também as colunas `assigned_at` nas tabelas `admin_site` e `vendor_site`.
+
+**O que acontece:** Algumas instalações MySQL não criaram as colunas `assigned_at` nas tabelas de relacionamento. Os scripts adicionam essas colunas automaticamente.
+
 #### 2. Erro de Conexão MySQL
 ```bash
 # Verificar se MySQL está rodando

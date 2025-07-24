@@ -142,6 +142,34 @@ class DatabaseMigrator:
             # Update existing records
             cursor.execute("UPDATE omada_config SET is_active = TRUE WHERE is_active IS NULL")
             
+            # Check and add assigned_at column to admin_site table
+            cursor.execute("""
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE table_name = 'admin_site' 
+                AND column_name = 'assigned_at' 
+                AND table_schema = DATABASE()
+            """)
+            
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("ALTER TABLE admin_site ADD COLUMN assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                self.log("Added assigned_at column to admin_site")
+            
+            # Check and add assigned_at column to vendor_site table
+            cursor.execute("""
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE table_name = 'vendor_site' 
+                AND column_name = 'assigned_at' 
+                AND table_schema = DATABASE()
+            """)
+            
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("ALTER TABLE vendor_site ADD COLUMN assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                self.log("Added assigned_at column to vendor_site")
+            
+            # Update existing records for assigned_at
+            cursor.execute("UPDATE admin_site SET assigned_at = CURRENT_TIMESTAMP WHERE assigned_at IS NULL")
+            cursor.execute("UPDATE vendor_site SET assigned_at = CURRENT_TIMESTAMP WHERE assigned_at IS NULL")
+            
             self.mysql_conn.commit()
             cursor.close()
             self.log("MySQL schema fix completed")

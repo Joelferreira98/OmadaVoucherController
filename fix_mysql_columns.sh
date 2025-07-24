@@ -65,9 +65,41 @@ DEALLOCATE PREPARE stmt;
 -- Update existing records
 UPDATE omada_config SET is_active = TRUE WHERE is_active IS NULL;
 
--- Show current structure
+-- Add assigned_at column to admin_site table if it doesn't exist
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+     WHERE table_name = 'admin_site' 
+     AND column_name = 'assigned_at' 
+     AND table_schema = DATABASE()) > 0,
+    "SELECT 'assigned_at column already exists in admin_site' as message",
+    "ALTER TABLE admin_site ADD COLUMN assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+));
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add assigned_at column to vendor_site table if it doesn't exist
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+     WHERE table_name = 'vendor_site' 
+     AND column_name = 'assigned_at' 
+     AND table_schema = DATABASE()) > 0,
+    "SELECT 'assigned_at column already exists in vendor_site' as message",
+    "ALTER TABLE vendor_site ADD COLUMN assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+));
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Update existing records to have assigned_at = CURRENT_TIMESTAMP if NULL
+UPDATE admin_site SET assigned_at = CURRENT_TIMESTAMP WHERE assigned_at IS NULL;
+UPDATE vendor_site SET assigned_at = CURRENT_TIMESTAMP WHERE assigned_at IS NULL;
+
+-- Show current structures
 SELECT 'MySQL schema updated successfully!' as status;
 DESCRIBE omada_config;
+DESCRIBE admin_site;
+DESCRIBE vendor_site;
 EOF
 
 if [ $? -eq 0 ]; then
